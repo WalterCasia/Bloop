@@ -75,18 +75,22 @@ const DailyStockDashboard = () => {
   };
 
   const handleStockChange = (delta) => {
-    if (!packData || packData.status === 'SOLD_OUT') return;
+    if (!packData) return;
+    
+    // Si queremos restar y está en SOLD_OUT o stock 0, ignoramos
+    if (delta < 0 && (packData.availableStock <= 0 || packData.status === 'SOLD_OUT')) return;
     
     const newStock = packData.availableStock + delta;
     if (newStock < 0) return;
 
-    // Optimistic Update
-    setPackData(prev => ({ ...prev, availableStock: newStock }));
+    // Optimistic Update: Si el nuevo stock es > 0, lo reactivamos
+    const newStatus = newStock > 0 ? 'ACTIVE' : packData.status;
+    setPackData(prev => ({ ...prev, availableStock: newStock, status: newStatus }));
 
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     
     debounceTimer.current = setTimeout(() => {
-      syncStockWithBackend(newStock, 'ACTIVE');
+      syncStockWithBackend(newStock, newStatus);
     }, 600);
   };
 
@@ -203,8 +207,7 @@ const DailyStockDashboard = () => {
             
             <button 
               onClick={() => handleStockChange(1)}
-              disabled={packData.status === 'SOLD_OUT'}
-              className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 text-gray-900 rounded-full flex justify-center items-center font-black text-3xl shadow-sm hover:bg-gray-200 active:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 text-gray-900 rounded-full flex justify-center items-center font-black text-3xl shadow-sm hover:bg-gray-200 active:bg-gray-300 transition-all"
             >
               +
             </button>

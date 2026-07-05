@@ -14,6 +14,7 @@ validateEnv();
 // 2. Inicialización de la instancia de Fastify
 const fastify = Fastify({
   logger: true, // Habilitado para trazabilidad de errores en producción/desarrollo
+  bodyLimit: 10485760 // 10MB para permitir subida de imágenes en base64
 });
 
 // Configuración de Cloudinary (no requiere plugin asíncrono)

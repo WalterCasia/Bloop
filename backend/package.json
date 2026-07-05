@@ -20,6 +20,7 @@
     "fastify": "^4.26.2",
     "fastify-plugin": "^4.5.1",
     "get-jwks": "^11.0.3",
+    "jsonwebtoken": "^9.0.3",
     "stripe": "^14.18.0"
   }
 }

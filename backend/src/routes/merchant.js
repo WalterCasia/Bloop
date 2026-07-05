@@ -275,19 +275,34 @@ export default async function merchantRoutes(fastify, options) {
           originalPrice: { type: 'number' },
           salePrice: { type: 'number' },
           startTime: { type: 'string' },
-          endTime: { type: 'string' }
+          endTime: { type: 'string' },
+          imageBase64: { type: 'string' }
         },
         required: ['title', 'originalPrice', 'salePrice', 'startTime', 'endTime']
       }
     }
   }, async (request, reply) => {
-    const { title, originalPrice, salePrice, startTime, endTime } = request.body;
+    const { title, originalPrice, salePrice, startTime, endTime, imageBase64 } = request.body;
     const storeId = request.user.sub || request.user.id;
     
     // Construir timestamps para la recogida (hoy a las startTime y endTime)
     const today = new Date().toISOString().split('T')[0];
     const pickupStart = `${today} ${startTime}:00-06`; // Asumimos zona horaria UTC-6 para Centroamérica, ideal para el MVP
     const pickupEnd = `${today} ${endTime}:00-06`;
+
+    let imageUrl = null;
+    try {
+      if (imageBase64) {
+        const uploadResponse = await fastify.cloudinary.uploader.upload(imageBase64, {
+          folder: 'bloop_packs',
+          resource_type: 'image'
+        });
+        imageUrl = uploadResponse.secure_url;
+      }
+    } catch (err) {
+      fastify.log.error('Error uploading image to Cloudinary:', err);
+      // We continue even if image upload fails, or we could throw. Let's continue with null.
+    }
 
     const client = await fastify.pg.connect();
     try {
@@ -297,12 +312,12 @@ export default async function merchantRoutes(fastify, options) {
       // Insertamos el nuevo pack
       const insertQuery = `
         INSERT INTO public.surprise_packs 
-        (store_id, title, original_price, discounted_price, available_quantity, total_quantity, pickup_start_time, pickup_end_time, is_active)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
+        (store_id, title, original_price, discounted_price, available_quantity, total_quantity, pickup_start_time, pickup_end_time, is_active, image_url)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9)
         RETURNING id
       `;
       // Inicializamos available_quantity y total_quantity en 0 para que el comercio lo ajuste manualmente desde el dashboard
-      const values = [storeId, title, originalPrice, salePrice, 0, 0, pickupStart, pickupEnd];
+      const values = [storeId, title, originalPrice, salePrice, 0, 0, pickupStart, pickupEnd, imageUrl];
       
       const result = await client.query(insertQuery, values);
       
