@@ -1,8 +1,22 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Redirigir si el usuario ya tiene sesión activa
+  useEffect(() => {
+    if (user) {
+      const userRole = user.user_metadata?.role || 'CLIENTE';
+      if (userRole === 'COMERCIO') {
+        navigate('/merchant/dashboard', { replace: true });
+      } else {
+        navigate('/explore', { replace: true });
+      }
+    }
+  }, [user, navigate]);
 
   return (
     <div style={{ fontFamily: 'sans-serif', color: '#111827', margin: 0, padding: 0 }}>
