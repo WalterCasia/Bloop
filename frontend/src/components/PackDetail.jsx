@@ -1,7 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
 
-const PackDetail = ({ pack, onBack }) => {
+import { useLocation, useNavigate } from 'react-router-dom';
+
+const PackDetail = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const pack = location.state?.pack;
+
+  const onBack = () => navigate(-1);
+
+  if (!pack) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <h2>Pack no encontrado</h2>
+        <button onClick={onBack}>Volver</button>
+      </div>
+    );
+  }
+
   // Estados: 'idle', 'loading', 'reserved', 'expired', 'error'
   const [status, setStatus] = useState('idle'); 
   const [errorMessage, setErrorMessage] = useState('');

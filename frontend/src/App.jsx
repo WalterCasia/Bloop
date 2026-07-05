@@ -144,18 +144,7 @@ const App = () => {
               path="/packs/:id" 
               element={
                 <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
-                  <PackDetail 
-                    pack={{ 
-                      pack_id: 'sample-uuid-1234', 
-                      store_name: 'Panadería Central',
-                      title: 'Pack Dulce',
-                      discounted_price: 3.50,
-                      original_price: 10.00,
-                      pickup_start_time: new Date().toISOString(),
-                      pickup_end_time: new Date(Date.now() + 3600000).toISOString()
-                    }} 
-                    onBack={() => window.history.back()}
-                  />
+                  <PackDetail />
                 </ProtectedRoute>
               } 
             />

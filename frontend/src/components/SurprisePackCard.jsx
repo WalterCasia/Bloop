@@ -19,7 +19,7 @@ const SurprisePackCard = ({ pack, isHovered, onMouseEnter, onMouseLeave, onClick
   
   const handleCardClick = () => {
     if (onClick) onClick(pack);
-    navigate(`/packs/${pack.pack_id}`);
+    navigate(`/packs/${pack.pack_id}`, { state: { pack } });
   };
 
   return (
