@@ -1,99 +1,150 @@
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/apiClient';
+import { useAuth } from '../contexts/AuthContext';
 
-/**
- * DailyStockDashboard
- * Panel de control rápido ("Touch-First") para operadores en tienda.
- * Permite ajustar el stock efímero diario de Packs Sorpresa instantáneamente.
- */
 const DailyStockDashboard = () => {
-  // Estado local que representa la plantilla activa del día
-  const [packData, setPackData] = useState({
-    id: 'pack_123',
-    title: 'Pack Sorpresa de Bollería',
-    soldUnits: 3,
-    availableStock: 5,
-    status: 'ACTIVE' // ACTIVE o SOLD_OUT
-  });
-
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [error, setError] = useState(null);
+  const { user } = useAuth();
   
-  // Referencia para manejar el Debounce (evitar clics compulsivos)
+  const [packData, setPackData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [errorModal, setErrorModal] = useState(null); // { title: '', message: '' }
+  
   const debounceTimer = useRef(null);
+  const lastValidStock = useRef(0);
 
-  // Función genérica para sincronizar el estado con el Backend (Upstash Redis)
+  // Cargar datos iniciales
+  useEffect(() => {
+    const fetchInitialStock = async () => {
+      try {
+        setIsLoading(true);
+        // El interceptor de Axios (apiClient) inyecta el token automáticamente.
+        // Fastify valida el store_id a partir del JWT.
+        const response = await apiClient.get('/api/merchant/stock');
+        
+        if (response.data.status === 'success') {
+          setPackData(response.data.pack);
+          lastValidStock.current = response.data.pack.availableStock;
+        }
+      } catch (err) {
+        setErrorModal({
+          title: 'Error de Conexión',
+          message: err.response?.data?.message || 'No se pudo cargar el inventario actual.'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchInitialStock();
+    }
+  }, [user]);
+
+  // Sincronización asíncrona (PATCH)
   const syncStockWithBackend = async (newStock, newStatus) => {
     try {
       setIsUpdating(true);
-      setError(null);
       
-      // Llamada HTTP real al endpoint POST /api/merchant/stock/sync
-      await apiClient.post('/api/merchant/stock/sync', {
+      await apiClient.patch('/api/merchant/stock', {
         packId: packData.id,
         availableStock: newStock,
         status: newStatus
       });
 
+      // Si tiene éxito, validamos que este es el nuevo estado real
+      lastValidStock.current = newStock;
     } catch (err) {
-      // Si falla el backend, deberíamos revertir el Optimistic UI Update.
-      // Por brevedad, aquí solo informamos del error crítico.
-      setError('Error crítico de sincronización de inventario. Revise conexión.');
+      // Reversión visual si falla el servidor
+      setPackData(prev => ({ ...prev, availableStock: lastValidStock.current, status: newStatus === 'SOLD_OUT' ? 'ACTIVE' : prev.status }));
+      
+      setErrorModal({
+        title: 'Sincronización Rechazada',
+        message: err.response?.data?.message || 'No se pudo actualizar el inventario. Verifique su conexión.'
+      });
     } finally {
       setIsUpdating(false);
     }
   };
 
-  /**
-   * Manejador de incremento y decremento con Optimistic UI Update.
-   * Se actualiza la interfaz instantáneamente para el cajero y luego sincroniza.
-   */
   const handleStockChange = (delta) => {
-    if (packData.status === 'SOLD_OUT' || packData.availableStock + delta < 0) return;
-
-    // 1. Optimistic Update (Actualización instantánea en pantalla)
+    if (!packData || packData.status === 'SOLD_OUT') return;
+    
     const newStock = packData.availableStock + delta;
+    if (newStock < 0) return;
+
+    // Optimistic Update
     setPackData(prev => ({ ...prev, availableStock: newStock }));
 
-    // 2. Debounce Sincronización (Solo envía HTTP si deja de pulsar por 500ms)
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     
     debounceTimer.current = setTimeout(() => {
       syncStockWithBackend(newStock, 'ACTIVE');
-    }, 500);
+    }, 600);
   };
 
-  /**
-   * Acción Crítica: Detener ventas del día
-   */
   const handleSoldOut = async () => {
-    // Si ya está agotado, no hacemos nada
-    if (packData.status === 'SOLD_OUT') return;
+    if (!packData || packData.status === 'SOLD_OUT') return;
     
-    const confirmAction = window.confirm('¿Está seguro de querer detener las ventas y poner el stock a cero por hoy?');
+    const confirmAction = window.confirm('¿Está seguro de querer detener las ventas y marcar el inventario como agotado por hoy?');
     if (!confirmAction) return;
 
-    // Optimistic Update a Cero
     setPackData(prev => ({ ...prev, availableStock: 0, status: 'SOLD_OUT' }));
     await syncStockWithBackend(0, 'SOLD_OUT');
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center">
+        <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+        <p className="mt-4 text-gray-500 font-semibold tracking-wide animate-pulse">Cargando inventario...</p>
+      </div>
+    );
+  }
+
+  if (!packData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex justify-center items-center p-4">
+         <div className="bg-white p-8 rounded-2xl shadow-sm text-center max-w-sm w-full border border-gray-100">
+           <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+           </svg>
+           <p className="text-gray-800 font-bold mb-2">Sin Packs Activos</p>
+           <p className="text-sm text-gray-500">No tienes ningún Pack Sorpresa configurado para el día de hoy.</p>
+         </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 font-sans touch-manipulation">
+      {/* Modal de Error (Tailwind) */}
+      {errorModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-4 text-red-600">
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <h3 className="text-lg font-black">{errorModal.title}</h3>
+            </div>
+            <p className="text-gray-600 text-sm font-medium mb-6">{errorModal.message}</p>
+            <button 
+              onClick={() => setErrorModal(null)}
+              className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-gray-800 transition-colors"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-md mx-auto mt-6">
-        
         <header className="mb-6">
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">Panel de Tienda</h1>
-          <p className="text-gray-500 font-medium text-sm">Control rápido de inventario diario</p>
+          <p className="text-gray-500 font-medium text-sm">Control de inventario en tiempo real</p>
         </header>
 
-        {error && (
-          <div className="bg-red-600 text-white p-4 rounded-xl text-sm font-bold shadow-lg mb-6 animate-pulse">
-            {error}
-          </div>
-        )}
-
-        {/* TARJETA PRINCIPAL DEL PACK ACTIVO */}
         <div className={`bg-white rounded-3xl p-6 shadow-sm border mb-6 transition-colors duration-300 ${
           packData.status === 'SOLD_OUT' ? 'border-red-200 bg-red-50' : 'border-gray-200'
         }`}>
@@ -111,31 +162,29 @@ const DailyStockDashboard = () => {
 
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-col items-center">
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Vendidos Hoy</span>
-              <span className="text-3xl font-black text-gray-900">{packData.soldUnits}</span>
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Reservados</span>
+              <span className="text-3xl font-black text-gray-900">{packData.soldUnits || 0}</span>
             </div>
             
             <div className={`p-4 rounded-2xl border flex flex-col items-center transition-colors ${
               packData.availableStock === 0 ? 'bg-red-100 border-red-200 text-red-700' : 'bg-blue-50 border-blue-100 text-blue-700'
             }`}>
-              <span className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Stock Actual</span>
+              <span className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">Disponibles</span>
               <span className="text-4xl font-black">{packData.availableStock}</span>
             </div>
           </div>
 
-          {/* CONTROLES TÁCTILES RÁPIDOS (Touch-First) */}
           <div className="flex justify-center items-center gap-6 mb-8">
             <button 
               onClick={() => handleStockChange(-1)}
               disabled={packData.availableStock <= 0 || packData.status === 'SOLD_OUT'}
               className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 text-gray-900 rounded-full flex justify-center items-center font-black text-3xl shadow-sm hover:bg-gray-200 active:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              aria-label="Reducir stock"
             >
               -
             </button>
             
             <div className="flex flex-col items-center justify-center w-20">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Ajuste</span>
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Sinc.</span>
               {isUpdating && <div className="mt-2 w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>}
             </div>
             
@@ -143,7 +192,6 @@ const DailyStockDashboard = () => {
               onClick={() => handleStockChange(1)}
               disabled={packData.status === 'SOLD_OUT'}
               className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 text-gray-900 rounded-full flex justify-center items-center font-black text-3xl shadow-sm hover:bg-gray-200 active:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              aria-label="Aumentar stock"
             >
               +
             </button>
@@ -151,7 +199,6 @@ const DailyStockDashboard = () => {
 
           <hr className="border-gray-100 mb-6" />
 
-          {/* BOTÓN CRÍTICO DE PARADA */}
           <button 
             onClick={handleSoldOut}
             disabled={packData.status === 'SOLD_OUT' || isUpdating}
@@ -161,10 +208,9 @@ const DailyStockDashboard = () => {
                 : 'bg-red-600 hover:bg-red-700'
             }`}
           >
-            {packData.status === 'SOLD_OUT' ? 'AGOTADO POR HOY' : 'AGOTADO / DETENER VENTAS'}
+            {packData.status === 'SOLD_OUT' ? 'AGOTADO POR HOY' : 'MARCAR COMO AGOTADO'}
           </button>
         </div>
-
       </div>
     </div>
   );

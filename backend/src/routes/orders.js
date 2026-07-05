@@ -118,4 +118,51 @@ export default async function orderRoutes(fastify, options) {
       client.release();
     }
   });
+
+  // Endpoint para obtener el historial de pedidos del cliente (CustomerOrders.jsx)
+  fastify.get('/api/customer/orders', {
+    onRequest: [fastify.authenticate]
+  }, async (request, reply) => {
+    const client_id = request.user.sub || request.user.id;
+    const client = await fastify.pg.connect();
+    
+    try {
+      // Unimos la tabla orders con surprise_packs y profiles (comercios) 
+      // para obtener el nombre, dirección y horarios de recogida.
+      const query = `
+        SELECT 
+          o.id,
+          o.status,
+          o.total_amount as total_price,
+          o.qr_code_secret as validation_token,
+          o.created_at,
+          p.title as pack_title,
+          p.pickup_start_time,
+          p.pickup_end_time,
+          st.name as store_name,
+          st.address as store_address
+        FROM public.orders o
+        JOIN public.surprise_packs p ON o.pack_id = p.id
+        JOIN public.profiles st ON o.store_id = st.id
+        WHERE o.client_id = $1
+        ORDER BY o.created_at DESC
+      `;
+      
+      const { rows } = await client.query(query, [client_id]);
+
+      return reply.code(200).send({
+        status: 'success',
+        orders: rows
+      });
+
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ 
+        error: 'Internal Server Error', 
+        message: 'No pudimos cargar tus pedidos en este momento.' 
+      });
+    } finally {
+      client.release();
+    }
+  });
 }

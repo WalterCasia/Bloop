@@ -5,10 +5,16 @@ import { ReservationProvider } from './contexts/ReservationContext';
 
 // Importación de Componentes Principales
 import MapExplorer from './components/MapExplorer';
+import CustomerOrders from './components/orders/CustomerOrders';
+import CustomerProfile from './components/CustomerProfile';
 import PackDetail from './components/PackDetail';
 import MerchantDashboard from './components/MerchantDashboard';
+import DailyStockDashboard from './components/DailyStockDashboard';
+import MerchantProfile from './components/merchant/MerchantProfile';
+import MerchantStats from './components/merchant/MerchantStats';
 import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
+import NavigationLayout from './components/NavigationLayout';
 
 // Placeholder de vistas auxiliares para mantener el enrutador funcional
 const Unauthorized = () => <div style={{ textAlign: 'center', padding: '40px', color: 'red' }}><h1>Acceso Denegado (403)</h1><p>Tu rol no permite acceder a esta área.</p></div>;
@@ -59,49 +65,94 @@ const App = () => {
           <Route path="/unauthorized" element={<Unauthorized />} />
 
           {/* =======================
-              Flujos Privados (Cliente)
+              Flujos Privados (App Shell)
              ======================= */}
-          <Route 
-            path="/explore" 
-            element={
-              <ProtectedRoute requiredRole="CLIENTE">
-                <MapExplorer />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/packs/:id" 
-            element={
-              <ProtectedRoute requiredRole="CLIENTE">
-                <PackDetail 
-                  // Prop de prueba para mantener la vista funcional aisladamente
-                  pack={{ 
-                    pack_id: 'sample-uuid-1234', 
-                    store_name: 'Panadería Central',
-                    title: 'Pack Dulce',
-                    discounted_price: 3.50,
-                    original_price: 10.00,
-                    pickup_start_time: new Date().toISOString(),
-                    pickup_end_time: new Date(Date.now() + 3600000).toISOString()
-                  }} 
-                  onBack={() => window.history.back()}
-                />
-              </ProtectedRoute>
-            } 
-          />
+          <Route element={<NavigationLayout />}>
+            {/* Rutas Cliente */}
+            <Route 
+              path="/explore" 
+              element={
+                <ProtectedRoute requiredRole="CLIENTE">
+                  <MapExplorer />
+                </ProtectedRoute>
+              } 
+            />
 
-          {/* =======================
-              Flujos Privados (Comercio)
-             ======================= */}
-          <Route 
-            path="/merchant/dashboard" 
-            element={
-              <ProtectedRoute requiredRole="COMERCIO">
-                <MerchantDashboard />
-              </ProtectedRoute>
-            } 
-          />
+            <Route 
+              path="/customer/orders" 
+              element={
+                <ProtectedRoute requiredRole="CLIENTE">
+                  <CustomerOrders />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute requiredRole="CLIENTE">
+                  <CustomerProfile />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/packs/:id" 
+              element={
+                <ProtectedRoute requiredRole="CLIENTE">
+                  <PackDetail 
+                    pack={{ 
+                      pack_id: 'sample-uuid-1234', 
+                      store_name: 'Panadería Central',
+                      title: 'Pack Dulce',
+                      discounted_price: 3.50,
+                      original_price: 10.00,
+                      pickup_start_time: new Date().toISOString(),
+                      pickup_end_time: new Date(Date.now() + 3600000).toISOString()
+                    }} 
+                    onBack={() => window.history.back()}
+                  />
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Rutas Comercio */}
+            <Route 
+              path="/merchant/dashboard" 
+              element={
+                <ProtectedRoute requiredRole="COMERCIO">
+                  <MerchantDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/merchant/stock" 
+              element={
+                <ProtectedRoute requiredRole="COMERCIO">
+                  <DailyStockDashboard />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/merchant/profile" 
+              element={
+                <ProtectedRoute requiredRole="COMERCIO">
+                  <MerchantProfile />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/merchant/stats" 
+              element={
+                <ProtectedRoute requiredRole="COMERCIO">
+                  <MerchantStats />
+                </ProtectedRoute>
+              } 
+            />
+          </Route>
 
           {/* Ruta Catch-all (Redirección 404 por defecto a Inicio) */}
           <Route path="*" element={<Navigate to="/" replace />} />

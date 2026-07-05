@@ -122,8 +122,72 @@ export default async function merchantRoutes(fastify, options) {
     }
   });
 
-  // Endpoint para sincronización manual de inventario desde el Panel del Comercio
-  fastify.post('/api/merchant/stock/sync', {
+  // ----------------------------------------------------------------------
+  // 1. OBTENER ESTADO DEL INVENTARIO DEL DÍA (GET)
+  // ----------------------------------------------------------------------
+  fastify.get('/api/merchant/stock', {
+    onRequest: [fastify.authenticate]
+  }, async (request, reply) => {
+    const storeId = request.user.sub || request.user.id;
+    const client = await fastify.pg.connect();
+    
+    try {
+      // Obtenemos el pack activo del comercio (asumimos 1 por comercio al día en el MVP)
+      const packQuery = `
+        SELECT id, title, available_quantity, original_price 
+        FROM public.surprise_packs 
+        WHERE store_id = $1
+        ORDER BY created_at DESC 
+        LIMIT 1
+      `;
+      const packResult = await client.query(packQuery, [storeId]);
+      
+      if (packResult.rowCount === 0) {
+        return reply.code(404).send({ status: 'error', message: 'No tienes un pack configurado.' });
+      }
+      
+      const pack = packResult.rows[0];
+
+      // Calculamos las unidades "Reservadas" (Vendidas hoy, estado PAGADO o RECOGIDO)
+      const soldQuery = `
+        SELECT COUNT(*) as count 
+        FROM public.orders 
+        WHERE pack_id = $1 AND store_id = $2 AND status IN ('PAGADO', 'RECOGIDO')
+      `;
+      const soldResult = await client.query(soldQuery, [pack.id, storeId]);
+      const soldUnits = parseInt(soldResult.rows[0].count, 10);
+
+      // Verificamos si hay stock en Redis para determinar el estado visual
+      const stockKey = `pack:${pack.id}:stock`;
+      const redisStock = await fastify.redis.get(stockKey);
+      
+      // Si en Redis es 0 y en BD es 0, está SOLD_OUT (o si no existe la llave y BD es 0)
+      const currentAvailable = parseInt(pack.available_quantity, 10);
+      const isSoldOut = currentAvailable === 0 && (redisStock === null || parseInt(redisStock, 10) === 0);
+
+      return reply.code(200).send({
+        status: 'success',
+        pack: {
+          id: pack.id,
+          title: pack.title,
+          soldUnits: soldUnits,
+          availableStock: currentAvailable,
+          status: isSoldOut ? 'SOLD_OUT' : 'ACTIVE'
+        }
+      });
+
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error', message: 'Error al cargar el inventario.' });
+    } finally {
+      client.release();
+    }
+  });
+
+  // ----------------------------------------------------------------------
+  // 2. SINCRONIZACIÓN MANUAL DE INVENTARIO (PATCH)
+  // ----------------------------------------------------------------------
+  fastify.patch('/api/merchant/stock', {
     onRequest: [fastify.authenticate],
     schema: {
       body: {
@@ -144,6 +208,19 @@ export default async function merchantRoutes(fastify, options) {
     try {
       await client.query('BEGIN');
 
+      // Regla de Negocio: Evitar reducir stock si choca con reservas activas en Redis
+      const keysToDelete = await fastify.redis.keys(`reservation:${packId}:*`);
+      const activeLocks = keysToDelete.length;
+
+      if (status !== 'SOLD_OUT' && availableStock < activeLocks) {
+        // El cajero intentó reducir con el botón "-", pero hay gente comprando
+        await client.query('ROLLBACK');
+        return reply.code(409).send({ 
+          error: 'Conflict', 
+          message: 'No es posible reducir el stock por debajo de la cantidad actual porque ya existen clientes que han reservado y están pagando estos packs en este instante. Si ha ocurrido un imprevisto y no puedes despachar más pedidos, por favor utiliza el botón "Marcar como Agotado" en la parte inferior.' 
+        });
+      }
+
       // 1. Verificamos pertenencia y actualizamos BD Maestra
       const updateResult = await client.query(`
         UPDATE public.surprise_packs 
@@ -160,16 +237,12 @@ export default async function merchantRoutes(fastify, options) {
       const stockKey = `pack:${packId}:stock`;
       await fastify.redis.set(stockKey, availableStock);
 
-      // 3. Cancelación Estricta (Hard Cancel) si se marcó como agotado
+      // 3. Cancelación Estricta (Hard Cancel) solo si se usa el botón de emergencia
       if (status === 'SOLD_OUT' || availableStock === 0) {
-        // Usamos KEYS en Upstash (equivalente simple para este caso de uso o SCAN). 
-        // Upstash soporta keys() directamente en su cliente web HTTP
-        const keysToDelete = await fastify.redis.keys(`reservation:${packId}:*`);
-        
-        if (keysToDelete.length > 0) {
+        if (activeLocks > 0) {
           // Eliminamos todos los bloqueos (los usuarios verán error al intentar pagar)
           await fastify.redis.del(...keysToDelete);
-          fastify.log.info(`Hard Cancel ejecutado: Se liberaron ${keysToDelete.length} bloqueos de Redis.`);
+          fastify.log.info(`Hard Cancel ejecutado: Se liberaron ${activeLocks} bloqueos de Redis.`);
         }
       }
 

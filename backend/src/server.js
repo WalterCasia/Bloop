@@ -38,6 +38,8 @@ async function registerPlugins() {
   await fastify.register(import('./routes/packs.js'));
   await fastify.register(import('./routes/orders.js'));
   await fastify.register(import('./routes/merchant.js'));
+  await fastify.register(import('./routes/profiles.js'));
+  await fastify.register(import('./routes/stats.js'));
   await fastify.register(import('./routes/webhooks.js'));
   await fastify.register(import('./routes/payments.js'));
 
