@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import Map, { Marker } from 'react-map-gl/mapbox';
@@ -93,8 +94,17 @@ const MerchantMandatoryOnboarding = () => {
     setError('');
 
     try {
-      // 1. Aquí se enviaría la data al Backend (Fastify) para guardar en PostGIS
-      // const response = await apiClient.post('/api/merchant/profile', { ...formData, coords });
+      // 1. Enviar la data al Backend (Fastify) para guardar en PostGIS
+      const payload = {
+        store_name: formData.storeName,
+        category: formData.category,
+        address: formData.address,
+        bank_account: formData.bankAccount,
+        lng: coords.lng,
+        lat: coords.lat
+      };
+      
+      await apiClient.put('/api/merchant/profile', payload);
 
       // 2. Actualizar el estado en Supabase Auth para liberar el acceso
       const { error: updateError } = await supabase.auth.updateUser({
@@ -103,7 +113,6 @@ const MerchantMandatoryOnboarding = () => {
           store_name: formData.storeName 
         }
       });
-
       if (updateError) throw updateError;
       
       await supabase.auth.refreshSession();

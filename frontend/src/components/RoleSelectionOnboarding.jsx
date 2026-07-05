@@ -24,6 +24,16 @@ const RoleSelectionOnboarding = () => {
 
       if (updateError) throw updateError;
 
+      // Upsert en public.profiles para que el backend lo reconozca
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({ 
+          id: user.id, 
+          role: selectedRole 
+        }, { onConflict: 'id' });
+
+      if (profileError) throw profileError;
+
       // Refrescar la sesión para asegurar que los metadatos se apliquen inmediatamente
       await supabase.auth.refreshSession();
 
