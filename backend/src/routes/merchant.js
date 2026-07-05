@@ -224,7 +224,10 @@ export default async function merchantRoutes(fastify, options) {
       // 1. Verificamos pertenencia y actualizamos BD Maestra
       const updateResult = await client.query(`
         UPDATE public.surprise_packs 
-        SET available_quantity = $1, updated_at = NOW() 
+        SET 
+          available_quantity = $1, 
+          total_quantity = GREATEST(total_quantity, $1),
+          updated_at = NOW() 
         WHERE id = $2 AND store_id = $3 
         RETURNING id
       `, [availableStock, packId, storeId]);
