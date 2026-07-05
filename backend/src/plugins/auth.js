@@ -1,47 +1,45 @@
 import fp from 'fastify-plugin';
-import fastifyJwt from '@fastify/jwt';
-import buildGetJwks from 'get-jwks';
+import { createClient } from '@supabase/supabase-js';
 import { config } from '../config/env.js';
 
-// Importante: jwksPath vacío porque pasaremos la URL exacta con los parámetros a `domain`
-const getJwks = buildGetJwks({ jwksPath: '' });
+// Inicializamos el cliente de Supabase con las variables sanitizadas
+const supabase = createClient(config.supabaseUrl, config.supabaseAnonKey);
 
 async function authPlugin(fastify, opts) {
-  await fastify.register(fastifyJwt, {
-    // Si la llave cambió a asimétrica (ECC/RS256), obtenemos la pública dinámicamente
-    secret: async (request, token) => {
-      if (token && token.header && token.header.kid) {
-        try {
-          // La ruta exacta de JWKS en Supabase es /auth/v1/.well-known/jwks.json
-          const domain = `${config.supabaseUrl}/auth/v1/.well-known/jwks.json?apikey=${config.supabaseAnonKey}`;
-          
-          const publicKey = await getJwks.getPublicKey({ 
-            kid: token.header.kid, 
-            domain: domain 
-          });
-          return publicKey;
-        } catch (err) {
-          request.log.error('Error fetching JWKS: ' + err.message);
-          return config.jwtSecret;
-        }
-      }
-      return config.jwtSecret;
-    },
-    verify: {
-      algorithms: ['HS256', 'ES256', 'RS256']
-    }
-  });
-
   // Middleware / Hook para proteger rutas privadas
   fastify.decorate('authenticate', async (request, reply) => {
     try {
-      await request.jwtVerify();
+      const authHeader = request.headers.authorization;
+      if (!authHeader) {
+        throw new Error('Falta el encabezado Authorization');
+      }
+
+      const token = authHeader.replace('Bearer ', '');
+      
+      // Utilizamos Supabase directamente para validar el JWT
+      // Esto resuelve automáticamente todos los problemas de JWKS, ES256 y rotación de llaves,
+      // y además asegura que el usuario no haya sido eliminado o baneado.
+      const { data: { user }, error } = await supabase.auth.getUser(token);
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (!user) {
+        throw new Error('Usuario no encontrado');
+      }
+
+      // Inyectamos el usuario en el request para que las rutas puedan usarlo
+      request.user = user;
     } catch (err) {
-      request.log.error('JWT Verification Error: ' + err.message);
-      reply.code(401).send({ error: 'No autorizado', message: 'Token JWT inválido o ausente', details: err.message });
+      request.log.error('Authentication Error: ' + err.message);
+      reply.code(401).send({ 
+        error: 'No autorizado', 
+        message: 'Token JWT inválido, expirado o asimétrico', 
+        details: err.message 
+      });
     }
   });
 }
 
-// Envuelve el plugin con fp para que fastify.authenticate esté disponible globalmente
 export default fp(authPlugin, { name: 'auth-plugin' });
