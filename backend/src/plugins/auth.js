@@ -20,6 +20,9 @@ async function authPlugin(fastify, opts) {
         }
       }
       return config.jwtSecret;
+    },
+    verify: {
+      algorithms: ['HS256', 'ES256', 'RS256']
     }
   });
 
