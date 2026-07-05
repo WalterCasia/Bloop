@@ -29,9 +29,8 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Manejar el deslogueo automático si el JWT expiró y no pudo renovarse
-      console.warn('Sesión expirada o no autorizada. Redirigiendo a Login...');
-      supabase.auth.signOut();
+      console.warn('Sesión expirada o no autorizada.', error.response.config.url);
+      // supabase.auth.signOut(); // Desactivado temporalmente para depuración
     }
     return Promise.reject(error);
   }

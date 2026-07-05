@@ -107,7 +107,7 @@ const NavigationLayout = () => {
       {/* =========================================
           Sidebar para Escritorio (md+)
           ========================================= */}
-      <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-white border-r border-gray-200 shadow-sm z-50">
+      <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-white border-r border-gray-200 shadow-sm z-[9999]">
         <div className="p-6 flex items-center justify-center border-b border-gray-100">
           <h1 className="text-2xl font-black text-green-600 tracking-tight">Bloop.</h1>
         </div>
@@ -141,7 +141,7 @@ const NavigationLayout = () => {
           Submenú Móvil (Overlay)
           ========================================= */}
       {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-40 bg-black/20" onClick={() => setIsMobileMenuOpen(false)}>
+        <div className="md:hidden fixed inset-0 z-[9998] bg-black/20" onClick={() => setIsMobileMenuOpen(false)}>
           <div 
             className="absolute bottom-16 right-4 bg-white p-2 rounded-xl shadow-lg border border-gray-100 w-48 mb-2 animate-in fade-in slide-in-from-bottom-4"
             onClick={(e) => e.stopPropagation()}
@@ -160,7 +160,7 @@ const NavigationLayout = () => {
       {/* =========================================
           Barra de Navegación Inferior Móvil
           ========================================= */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 z-50 pb-safe">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 z-[9999] pb-safe">
         {links.map((link) => (
           <NavItem key={link.path} {...link} />
         ))}
