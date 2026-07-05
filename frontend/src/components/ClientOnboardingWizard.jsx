@@ -82,10 +82,9 @@ const ClientOnboardingWizard = () => {
     setIsLoading(true);
 
     try {
-      await apiClient.patch('/api/users/profile', { 
+      await apiClient.put('/api/customer/profile', { 
         full_name: firstName,
-        phone: phone,
-        preferences: { radius: searchRadius, location: manualLocation }
+        phone_number: phone
       });
 
       const { error: updateError } = await supabase.auth.updateUser({
