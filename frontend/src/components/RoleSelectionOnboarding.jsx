@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import apiClient from '../api/apiClient';
 
 const RoleSelectionOnboarding = () => {
   const [selectedRole, setSelectedRole] = useState(null);
@@ -24,15 +25,12 @@ const RoleSelectionOnboarding = () => {
 
       if (updateError) throw updateError;
 
-      // Upsert en public.profiles para que el backend lo reconozca
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({ 
-          id: user.id, 
-          role: selectedRole 
-        }, { onConflict: 'id' });
-
-      if (profileError) throw profileError;
+      // Usar nuestro endpoint del backend para upsert en public.profiles
+      // Esto evita los errores 401 de RLS en el frontend
+      await apiClient.patch('/api/users/profile', { 
+        role: selectedRole,
+        full_name: user?.user_metadata?.full_name || user?.user_metadata?.name || 'Usuario Bloop'
+      });
 
       // Refrescar la sesión para asegurar que los metadatos se apliquen inmediatamente
       await supabase.auth.refreshSession();

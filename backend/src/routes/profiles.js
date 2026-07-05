@@ -223,4 +223,50 @@ export default async function profileRoutes(fastify, options) {
       client.release();
     }
   });
+
+  // 5. Establecer Rol del Usuario (Usado en el Onboarding)
+  fastify.patch('/api/users/profile', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          role: { type: 'string', enum: ['CLIENTE', 'COMERCIO'] },
+          full_name: { type: 'string' }
+        },
+        required: ['role']
+      }
+    }
+  }, async (request, reply) => {
+    const userId = request.user.sub || request.user.id;
+    const { role, full_name } = request.body;
+    
+    const client = await fastify.pg.connect();
+
+    try {
+      const defaultName = full_name || 'Usuario Bloop';
+      const query = `
+        INSERT INTO public.profiles (id, role, full_name)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (id) DO UPDATE SET
+          role = EXCLUDED.role,
+          updated_at = NOW()
+        RETURNING id, role, full_name
+      `;
+      
+      const { rows } = await client.query(query, [userId, role, defaultName]);
+
+      return reply.code(200).send({
+        status: 'success',
+        message: 'Rol actualizado correctamente',
+        profile: rows[0]
+      });
+
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error', message: 'No se pudo actualizar el rol.' });
+    } finally {
+      client.release();
+    }
+  });
 }
