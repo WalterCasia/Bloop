@@ -297,12 +297,12 @@ export default async function merchantRoutes(fastify, options) {
       // Insertamos el nuevo pack
       const insertQuery = `
         INSERT INTO public.surprise_packs 
-        (store_id, title, original_price, discounted_price, available_quantity, pickup_start_time, pickup_end_time, is_active)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+        (store_id, title, original_price, discounted_price, available_quantity, total_quantity, pickup_start_time, pickup_end_time, is_active)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
         RETURNING id
       `;
-      // Inicializamos available_quantity en 0 para que el comercio lo ajuste manualmente desde el dashboard
-      const values = [storeId, title, originalPrice, salePrice, 0, pickupStart, pickupEnd];
+      // Inicializamos available_quantity y total_quantity en 0 para que el comercio lo ajuste manualmente desde el dashboard
+      const values = [storeId, title, originalPrice, salePrice, 0, 0, pickupStart, pickupEnd];
       
       const result = await client.query(insertQuery, values);
       
