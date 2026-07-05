@@ -75,7 +75,7 @@ const SurprisePackTemplateEditor = () => {
       const response = await apiClient.post('/api/merchant/packs/template', payload);
       if (response.data.status === 'success') {
         alert('Plantilla guardada correctamente en el sistema. Redirigiendo a tu inventario...');
-        navigate('/merchant/inventory');
+        navigate('/merchant/daily-stock');
       }
     } catch (error) {
       alert(error.response?.data?.message || 'Error al guardar el pack. Intenta nuevamente.');

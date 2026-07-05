@@ -78,7 +78,7 @@ const NavigationLayout = () => {
 
   const merchantLinks = [
     { label: 'Escáner QR', path: '/merchant/dashboard', icon: Icons.scanner },
-    { label: 'Inventario', path: '/merchant/stock', icon: Icons.inventory },
+    { label: 'Inventario', path: '/merchant/daily-stock', icon: Icons.inventory },
     { label: 'Perfil', path: '/merchant/profile', icon: Icons.profile },
     { label: 'Estadísticas', path: '/merchant/stats', icon: Icons.stats },
   ];
