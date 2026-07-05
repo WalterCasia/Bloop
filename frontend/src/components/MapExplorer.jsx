@@ -1,43 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import Map, { Marker, Popup, NavigationControl, GeolocateControl } from 'react-map-gl';
 import apiClient from '../api/apiClient';
-import 'leaflet/dist/leaflet.css';
+import 'mapbox-gl/dist/mapbox-gl.css';
 
-/**
- * Función para generar iconos dinámicos usando HTML y CSS
- * Verde: Más de 2 unidades (Stock Seguro)
- * Naranja: 2 o menos unidades (Últimas Unidades)
- */
-const createCustomIcon = (stock) => {
-  const color = stock > 2 ? '#22c55e' : '#f97316'; 
-  
-  return L.divIcon({
-    className: 'custom-pin',
-    iconAnchor: [12, 24],
-    popupAnchor: [0, -24],
-    html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"></div>`
-  });
-};
-
-/**
- * Componente inyectado para recentrar el mapa dinámicamente
- * cuando la API del navegador resuelve las coordenadas del usuario.
- */
-const ChangeView = ({ center }) => {
-  const map = useMap();
-  map.setView(center, map.getZoom());
-  return null;
-};
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const MapExplorer = () => {
+  const [viewState, setViewState] = useState({
+    longitude: -3.7038,
+    latitude: 40.4168,
+    zoom: 13
+  });
   const [location, setLocation] = useState(null);
   const [packs, setPacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedPack, setSelectedPack] = useState(null);
 
   useEffect(() => {
-    // 1. Solicitar permisos de GPS al navegador de forma estricta
+    // Solicitar permisos GPS y establecer la vista
     if (!navigator.geolocation) {
       setError('La geolocalización no es soportada por tu navegador actual.');
       setLoading(false);
@@ -46,10 +27,13 @@ const MapExplorer = () => {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        });
+        const { latitude, longitude } = position.coords;
+        setLocation({ lat: latitude, lng: longitude });
+        setViewState((prev) => ({
+          ...prev,
+          longitude,
+          latitude,
+        }));
       },
       (err) => {
         setError('Es obligatorio permitir el acceso a la ubicación GPS para localizar los packs cercanos.');
@@ -60,7 +44,6 @@ const MapExplorer = () => {
   }, []);
 
   useEffect(() => {
-    // 2. Consumir el endpoint optimizado de PostGIS al resolver la ubicación
     const fetchPacks = async () => {
       if (!location) return;
       
@@ -70,7 +53,7 @@ const MapExplorer = () => {
           params: {
             lat: location.lat,
             lng: location.lng,
-            radius: 5 // Búsqueda configurada a 5 kilómetros de radio
+            radius: 5
           }
         });
         
@@ -89,72 +72,84 @@ const MapExplorer = () => {
 
   if (error) {
     return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb' }}>
-        <p style={{ color: '#ef4444', fontWeight: 'bold' }}>{error}</p>
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <p className="text-red-500 font-bold text-center px-4">{error}</p>
       </div>
     );
   }
 
-  // Coordenadas neutrales predeterminadas mientras se resuelven los permisos GPS
-  const defaultCenter = [40.4168, -3.7038]; 
-  const currentCenter = location ? [location.lat, location.lng] : defaultCenter;
-
   return (
-    <div style={{ position: 'relative', height: '100vh', width: '100%' }}>
+    <div className="relative h-screen w-full">
       {loading && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.7)' }}>
-          <p style={{ color: '#374151', fontWeight: 'bold' }}>Rastreando inventario en tiempo real...</p>
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm">
+          <p className="text-gray-700 font-bold animate-pulse">Rastreando inventario en tiempo real...</p>
         </div>
       )}
 
-      {/* Renderizado del motor de mapa interactivo */}
-      <MapContainer center={currentCenter} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-        <TileLayer
-          attribution='&copy; OpenStreetMap contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        
-        {location && <ChangeView center={currentCenter} />}
+      <Map
+        {...viewState}
+        onMove={evt => setViewState(evt.viewState)}
+        mapStyle="mapbox://styles/mapbox/streets-v12"
+        mapboxAccessToken={MAPBOX_TOKEN}
+        style={{ width: '100%', height: '100%' }}
+      >
+        <GeolocateControl position="top-right" />
+        <NavigationControl position="top-right" />
 
         {packs.map((pack) => (
           <Marker 
             key={pack.pack_id} 
-            position={[pack.location_lat, pack.location_lng]} 
-            icon={createCustomIcon(pack.available_quantity)}
+            longitude={pack.location_lng} 
+            latitude={pack.location_lat} 
+            anchor="bottom"
+            onClick={(e) => {
+              e.originalEvent.stopPropagation();
+              setSelectedPack(pack);
+            }}
           >
-            <Popup>
-              <div style={{ padding: '4px', maxWidth: '200px' }}>
-                <img 
-                  src={pack.image_url || pack.cover_url} 
-                  alt={pack.store_name} 
-                  style={{ height: '96px', width: '100%', objectFit: 'cover', borderRadius: '6px', marginBottom: '8px' }} 
-                />
-                <h3 style={{ margin: 0, fontWeight: 'bold', color: '#111827' }}>{pack.store_name}</h3>
-                <p style={{ margin: '2px 0', fontSize: '14px', color: '#4B5563' }}>{pack.title}</p>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
-                  <span style={{ fontWeight: 'bold', color: '#16a34a' }}>${pack.discounted_price}</span>
-                  <span style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'line-through' }}>${pack.original_price}</span>
-                </div>
-                
-                <p style={{ margin: '4px 0', fontSize: '12px', color: '#6B7280' }}>
-                  Stock Disponible: <strong style={{ color: pack.available_quantity > 2 ? '#16a34a' : '#ea580c' }}>{pack.available_quantity}</strong>
-                </p>
-                <p style={{ margin: '4px 0', fontSize: '12px', color: '#6B7280' }}>
-                  A {Number(pack.distance_km).toFixed(1)} km de distancia
-                </p>
-
-                <button style={{ 
-                  marginTop: '12px', width: '100%', backgroundColor: '#2563EB', color: 'white', 
-                  padding: '6px 0', borderRadius: '6px', border: 'none', fontWeight: 'bold', cursor: 'pointer' 
-                }}>
-                  Reservar Pack
-                </button>
-              </div>
-            </Popup>
+            <div 
+              className={`w-8 h-8 rounded-full border-4 border-white shadow-lg cursor-pointer transform transition-transform hover:scale-110 ${pack.available_quantity > 2 ? 'bg-green-500' : 'bg-orange-500'}`}
+            ></div>
           </Marker>
         ))}
-      </MapContainer>
+
+        {selectedPack && (
+          <Popup
+            anchor="top"
+            longitude={selectedPack.location_lng}
+            latitude={selectedPack.location_lat}
+            onClose={() => setSelectedPack(null)}
+            closeOnClick={false}
+            className="z-40"
+          >
+            <div className="p-2 w-48">
+              <img 
+                src={selectedPack.image_url || selectedPack.cover_url} 
+                alt={selectedPack.store_name} 
+                className="h-24 w-full object-cover rounded-lg mb-2" 
+              />
+              <h3 className="m-0 font-black text-gray-900 text-lg leading-tight">{selectedPack.store_name}</h3>
+              <p className="m-0 text-sm text-gray-600 truncate">{selectedPack.title}</p>
+              
+              <div className="flex justify-between items-center mt-2">
+                <span className="font-bold text-green-600 text-lg">${selectedPack.discounted_price}</span>
+                <span className="text-xs text-gray-400 line-through">${selectedPack.original_price}</span>
+              </div>
+              
+              <p className="m-0 mt-1 text-xs text-gray-500">
+                Stock: <strong className={selectedPack.available_quantity > 2 ? 'text-green-600' : 'text-orange-500'}>{selectedPack.available_quantity}</strong>
+              </p>
+              <p className="m-0 text-xs text-gray-500">
+                A {Number(selectedPack.distance_km).toFixed(1)} km
+              </p>
+
+              <button className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold text-sm transition-colors shadow-md">
+                Reservar Pack
+              </button>
+            </div>
+          </Popup>
+        )}
+      </Map>
     </div>
   );
 };

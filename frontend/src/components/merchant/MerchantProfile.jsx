@@ -1,34 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
+import Map, { Marker, NavigationControl } from 'react-map-gl';
 import apiClient from '../../api/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
-import 'leaflet/dist/leaflet.css';
+import 'mapbox-gl/dist/mapbox-gl.css';
 
-// Fix para el ícono por defecto de Leaflet en React
-import iconMarkerUrl from 'leaflet/dist/images/marker-icon.png';
-import iconMarkerShadowUrl from 'leaflet/dist/images/marker-shadow.png';
-
-const customIcon = L.icon({
-  iconUrl: iconMarkerUrl,
-  shadowUrl: iconMarkerShadowUrl,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41]
-});
-
-// Componente hijo para manejar clicks en el mapa
-const LocationPicker = ({ position, setPosition }) => {
-  useMapEvents({
-    click(e) {
-      setPosition({
-        lat: e.latlng.lat,
-        lng: e.latlng.lng
-      });
-    },
-  });
-
-  return position ? <Marker position={position} icon={customIcon} /> : null;
-};
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const MerchantProfile = () => {
   const { user } = useAuth();
@@ -42,6 +18,11 @@ const MerchantProfile = () => {
   });
   
   const [position, setPosition] = useState(null); // {lat, lng}
+  const [viewState, setViewState] = useState({
+    longitude: -90.5069,
+    latitude: 14.6349,
+    zoom: 14
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState(null); // { type: 'success' | 'error', text: '' }
@@ -63,6 +44,7 @@ const MerchantProfile = () => {
           
           if (profile.lat && profile.lng) {
             setPosition({ lat: profile.lat, lng: profile.lng });
+            setViewState({ longitude: profile.lng, latitude: profile.lat, zoom: 14 });
           } else {
             // Posición por defecto si es su primera vez (Ej: Ciudad de Guatemala)
             setPosition({ lat: 14.6349, lng: -90.5069 });
@@ -70,7 +52,6 @@ const MerchantProfile = () => {
         }
       } catch (err) {
         setMessage({ type: 'error', text: 'Error al cargar tu perfil actual.' });
-        // Posición por defecto en caso de error
         setPosition({ lat: 14.6349, lng: -90.5069 });
       } finally {
         setIsLoading(false);
@@ -84,6 +65,13 @@ const MerchantProfile = () => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleMapClick = (e) => {
+    setPosition({
+      lat: e.lngLat.lat,
+      lng: e.lngLat.lng
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -188,13 +176,19 @@ const MerchantProfile = () => {
             
             <div className="h-64 rounded-xl overflow-hidden border border-gray-200 shadow-inner z-0 relative">
               {position && (
-                <MapContainer center={[position.lat, position.lng]} zoom={15} scrollWheelZoom={false} className="h-full w-full">
-                  <TileLayer
-                    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                    attribution='&copy; <a href="https://carto.com/">carto.com</a>'
-                  />
-                  <LocationPicker position={position} setPosition={setPosition} />
-                </MapContainer>
+                <Map
+                  {...viewState}
+                  onMove={evt => setViewState(evt.viewState)}
+                  onClick={handleMapClick}
+                  mapStyle="mapbox://styles/mapbox/light-v11"
+                  mapboxAccessToken={MAPBOX_TOKEN}
+                  style={{ width: '100%', height: '100%' }}
+                >
+                  <NavigationControl position="top-right" />
+                  <Marker longitude={position.lng} latitude={position.lat} anchor="bottom">
+                    <div className="w-6 h-6 bg-gray-900 rounded-full border-4 border-white shadow-md"></div>
+                  </Marker>
+                </Map>
               )}
             </div>
             {position && (
