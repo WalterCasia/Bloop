@@ -19,9 +19,9 @@ export default async function profileRoutes(fastify, options) {
       const { rows } = await client.query(query, [userId]);
 
       if (rows.length === 0) {
-        return reply.code(404).send({ 
-          status: 'error', 
-          message: 'Perfil de comercio no encontrado' 
+        return reply.code(200).send({ 
+          status: 'success', 
+          profile: {} // Perfil vacío para primera vez
         });
       }
 
@@ -63,28 +63,38 @@ export default async function profileRoutes(fastify, options) {
     const client = await fastify.pg.connect();
 
     try {
-      // Validamos que sea comercio
-      const checkRole = await client.query(`SELECT role FROM public.profiles WHERE id = $1`, [userId]);
-      if (checkRole.rows.length === 0 || checkRole.rows[0].role !== 'COMERCIO') {
+      // Validamos que sea comercio (revisando en perfiles o directamente en auth.users si no existe)
+      let isMerchant = false;
+      const checkProfile = await client.query(`SELECT role FROM public.profiles WHERE id = $1`, [userId]);
+      if (checkProfile.rows.length > 0) {
+        isMerchant = checkProfile.rows[0].role === 'COMERCIO';
+      } else {
+        const checkAuth = await client.query(`SELECT raw_user_meta_data->>'role' as role FROM auth.users WHERE id = $1`, [userId]);
+        isMerchant = checkAuth.rows.length > 0 && checkAuth.rows[0].role === 'COMERCIO';
+      }
+
+      if (!isMerchant) {
         return reply.code(403).send({ status: 'error', message: 'Acceso denegado. Solo comercios pueden actualizar este perfil.' });
       }
 
-      // Actualizamos, usamos ST_SetSRID(ST_MakePoint(lng, lat), 4326) para la columna location
+      // Usamos UPSERT (INSERT ... ON CONFLICT DO UPDATE)
+      // Para poder crear el registro si no existe, respetando las validaciones NOT NULL de comercio
       const query = `
-        UPDATE public.profiles
-        SET 
-          store_name = $1,
-          description = $2,
-          address = $3,
-          location = ST_SetSRID(ST_MakePoint($4, $5), 4326),
-          avatar_url = $6,
-          cover_url = $7,
+        INSERT INTO public.profiles (id, role, full_name, store_name, description, address, location, avatar_url, cover_url)
+        VALUES ($1, 'COMERCIO', $2, $3, $4, $5, ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9)
+        ON CONFLICT (id) DO UPDATE SET
+          store_name = EXCLUDED.store_name,
+          description = EXCLUDED.description,
+          address = EXCLUDED.address,
+          location = EXCLUDED.location,
+          avatar_url = EXCLUDED.avatar_url,
+          cover_url = EXCLUDED.cover_url,
           updated_at = NOW()
-        WHERE id = $8
         RETURNING id, store_name, address
       `;
       
-      const values = [store_name, description || null, address, lng, lat, avatar_url || null, cover_url || null, userId];
+      const full_name_fallback = request.user.email || 'Comercio Bloop';
+      const values = [userId, full_name_fallback, store_name, description || null, address, lng, lat, avatar_url || null, cover_url || null];
       
       const { rows } = await client.query(query, values);
 
@@ -131,9 +141,9 @@ export default async function profileRoutes(fastify, options) {
       const { rows } = await client.query(query, [userId]);
 
       if (rows.length === 0) {
-        return reply.code(404).send({ 
-          status: 'error', 
-          message: 'Perfil de cliente no encontrado' 
+        return reply.code(200).send({ 
+          status: 'success', 
+          profile: { total_packs_saved: 0 } 
         });
       }
 
@@ -172,23 +182,31 @@ export default async function profileRoutes(fastify, options) {
 
     try {
       // Validamos que sea cliente
-      const checkRole = await client.query(`SELECT role FROM public.profiles WHERE id = $1`, [userId]);
-      if (checkRole.rows.length === 0 || checkRole.rows[0].role !== 'CLIENTE') {
+      let isCustomer = false;
+      const checkProfile = await client.query(`SELECT role FROM public.profiles WHERE id = $1`, [userId]);
+      if (checkProfile.rows.length > 0) {
+        isCustomer = checkProfile.rows[0].role === 'CLIENTE';
+      } else {
+        const checkAuth = await client.query(`SELECT raw_user_meta_data->>'role' as role FROM auth.users WHERE id = $1`, [userId]);
+        isCustomer = checkAuth.rows.length > 0 && checkAuth.rows[0].role === 'CLIENTE';
+      }
+
+      if (!isCustomer) {
         return reply.code(403).send({ status: 'error', message: 'Acceso denegado. Solo clientes pueden actualizar este perfil.' });
       }
 
       const query = `
-        UPDATE public.profiles
-        SET 
-          full_name = $1,
-          phone_number = $2,
-          avatar_url = $3,
+        INSERT INTO public.profiles (id, role, full_name, phone_number, avatar_url)
+        VALUES ($1, 'CLIENTE', $2, $3, $4)
+        ON CONFLICT (id) DO UPDATE SET
+          full_name = EXCLUDED.full_name,
+          phone_number = EXCLUDED.phone_number,
+          avatar_url = EXCLUDED.avatar_url,
           updated_at = NOW()
-        WHERE id = $4
         RETURNING id, full_name, phone_number, avatar_url
       `;
       
-      const values = [full_name, phone_number || null, avatar_url || null, userId];
+      const values = [userId, full_name, phone_number || null, avatar_url || null];
       
       const { rows } = await client.query(query, values);
 
