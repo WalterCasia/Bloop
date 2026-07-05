@@ -1,5 +1,5 @@
 import React from 'react';
-import { Marker } from 'react-map-gl';
+import { Marker } from 'react-map-gl/mapbox';
 
 const MapPricePill = ({ pack, isHovered, onClick }) => {
   // pack.location_lat y pack.location_lng vienen del endpoint /explore

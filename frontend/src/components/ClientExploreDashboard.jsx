@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Map, { NavigationControl, GeolocateControl } from 'react-map-gl';
+import Map, { NavigationControl, GeolocateControl } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Filter, Map as MapIcon, List, AlertCircle } from 'lucide-react';
 import apiClient from '../api/apiClient';
