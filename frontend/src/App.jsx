@@ -17,9 +17,9 @@ import LoginPage from './components/LoginPage';
 import SignupPage from './components/SignupPage';
 import NavigationLayout from './components/NavigationLayout';
 import RoleSelectionOnboarding from './components/RoleSelectionOnboarding';
-import ClientOnboarding from './components/ClientOnboarding';
+import ClientOnboardingWizard from './components/ClientOnboardingWizard';
 import ClientProfilePreferences from './components/ClientProfilePreferences';
-import MerchantMandatoryOnboarding from './components/MerchantMandatoryOnboarding';
+import MerchantOnboardingWizard from './components/MerchantOnboardingWizard';
 import SurprisePackTemplateEditor from './components/SurprisePackTemplateEditor';
 
 // Placeholder de vistas auxiliares para mantener el enrutador funcional
@@ -99,7 +99,7 @@ const App = () => {
               path="/onboarding/client" 
               element={
                 <ProtectedRoute requiredRole="CLIENTE">
-                  <ClientOnboarding />
+                  <ClientOnboardingWizard />
                 </ProtectedRoute>
               } 
             />
@@ -165,7 +165,7 @@ const App = () => {
               path="/onboarding/merchant" 
               element={
                 <ProtectedRoute requiredRole="COMERCIO">
-                  <MerchantMandatoryOnboarding />
+                  <MerchantOnboardingWizard />
                 </ProtectedRoute>
               } 
             />
