@@ -51,6 +51,10 @@ const SurprisePackTemplateEditor = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleDiscountChange = (e) => {
+    setDiscountRate(parseInt(e.target.value, 10));
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
