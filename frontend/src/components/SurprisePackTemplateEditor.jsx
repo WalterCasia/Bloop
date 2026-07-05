@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 
 /**
  * SurprisePackTemplateEditor
@@ -52,19 +54,34 @@ const SurprisePackTemplateEditor = () => {
     setDiscountRate(parseInt(e.target.value, 10));
   };
 
-  const handleSubmit = (e) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (timeError) return;
+    if (timeError || isSubmitting) return;
     
     const payload = {
-      ...formData,
-      discountRate,
-      salePrice: parseFloat(salePrice)
+      title: formData.title,
+      // category, description, instructions are currently not stored in DB, but we send them just in case
+      originalPrice: parseFloat(formData.originalPrice),
+      salePrice: parseFloat(salePrice),
+      startTime: formData.startTime,
+      endTime: formData.endTime
     };
     
-    // Aquí se conectaría con la API POST /api/merchant/packs/template
-    console.log('Guardando plantilla:', payload);
-    alert('Plantilla guardada correctamente en el sistema.');
+    setIsSubmitting(true);
+    try {
+      const response = await apiClient.post('/api/merchant/packs/template', payload);
+      if (response.data.status === 'success') {
+        alert('Plantilla guardada correctamente en el sistema. Redirigiendo a tu inventario...');
+        navigate('/merchant/inventory');
+      }
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error al guardar el pack. Intenta nuevamente.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -240,10 +257,17 @@ const SurprisePackTemplateEditor = () => {
           <div className="pt-6 flex justify-end">
             <button
               type="submit"
-              disabled={!formData.originalPrice}
-              className="px-8 py-3 bg-gray-900 text-white text-sm font-bold rounded-md hover:bg-black transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md"
+              disabled={!formData.originalPrice || isSubmitting}
+              className="px-8 py-3 bg-gray-900 text-white text-sm font-bold rounded-md hover:bg-black transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2"
             >
-              Guardar Plantilla Base
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Guardando...
+                </>
+              ) : (
+                'Guardar Plantilla Base'
+              )}
             </button>
           </div>
 

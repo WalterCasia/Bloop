@@ -261,4 +261,61 @@ export default async function merchantRoutes(fastify, options) {
       client.release();
     }
   });
+
+  // ----------------------------------------------------------------------
+  // 3. CREAR PACK SORPRESA (POST)
+  // ----------------------------------------------------------------------
+  fastify.post('/api/merchant/packs/template', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          originalPrice: { type: 'number' },
+          salePrice: { type: 'number' },
+          startTime: { type: 'string' },
+          endTime: { type: 'string' }
+        },
+        required: ['title', 'originalPrice', 'salePrice', 'startTime', 'endTime']
+      }
+    }
+  }, async (request, reply) => {
+    const { title, originalPrice, salePrice, startTime, endTime } = request.body;
+    const storeId = request.user.sub || request.user.id;
+    
+    // Construir timestamps para la recogida (hoy a las startTime y endTime)
+    const today = new Date().toISOString().split('T')[0];
+    const pickupStart = `${today} ${startTime}:00-06`; // Asumimos zona horaria UTC-6 para Centroamérica, ideal para el MVP
+    const pickupEnd = `${today} ${endTime}:00-06`;
+
+    const client = await fastify.pg.connect();
+    try {
+      // Inactivamos packs anteriores del comercio para que solo haya 1 activo (Regla de negocio MVP)
+      await client.query(`UPDATE public.surprise_packs SET is_active = false WHERE store_id = $1`, [storeId]);
+
+      // Insertamos el nuevo pack
+      const insertQuery = `
+        INSERT INTO public.surprise_packs 
+        (store_id, title, original_price, discounted_price, available_quantity, pickup_start_time, pickup_end_time, is_active)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+        RETURNING id
+      `;
+      // Inicializamos available_quantity en 0 para que el comercio lo ajuste manualmente desde el dashboard
+      const values = [storeId, title, originalPrice, salePrice, 0, pickupStart, pickupEnd];
+      
+      const result = await client.query(insertQuery, values);
+      
+      return reply.code(201).send({ 
+        status: 'success', 
+        message: 'Plantilla de pack creada exitosamente.',
+        packId: result.rows[0].id
+      });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error', message: 'No se pudo crear el pack.' });
+    } finally {
+      client.release();
+    }
+  });
 }
