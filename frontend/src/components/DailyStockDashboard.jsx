@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -116,7 +117,13 @@ const DailyStockDashboard = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
            </svg>
            <p className="text-gray-800 font-bold mb-2">Sin Packs Activos</p>
-           <p className="text-sm text-gray-500">No tienes ningún Pack Sorpresa configurado para el día de hoy.</p>
+           <p className="text-sm text-gray-500 mb-6">No tienes ningún Pack Sorpresa configurado para el día de hoy.</p>
+           <Link 
+             to="/merchant/create-pack"
+             className="inline-block w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-colors"
+           >
+             Crear mi primer Pack
+           </Link>
          </div>
       </div>
     );

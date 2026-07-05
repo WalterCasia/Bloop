@@ -18,6 +18,7 @@ import NavigationLayout from './components/NavigationLayout';
 import RoleSelectionOnboarding from './components/RoleSelectionOnboarding';
 import ClientProfilePreferences from './components/ClientProfilePreferences';
 import MerchantMandatoryOnboarding from './components/MerchantMandatoryOnboarding';
+import SurprisePackTemplateEditor from './components/SurprisePackTemplateEditor';
 
 // Placeholder de vistas auxiliares para mantener el enrutador funcional
 const Unauthorized = () => <div style={{ textAlign: 'center', padding: '40px', color: 'red' }}><h1>Acceso Denegado (403)</h1><p>Tu rol no permite acceder a esta área.</p></div>;
@@ -170,6 +171,15 @@ const App = () => {
               element={
                 <ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}>
                   <DailyStockDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/merchant/create-pack" 
+              element={
+                <ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}>
+                  <SurprisePackTemplateEditor />
                 </ProtectedRoute>
               } 
             />
