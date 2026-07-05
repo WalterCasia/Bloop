@@ -16,8 +16,10 @@ const LoginPage = () => {
   // Redirigir automáticamente si ya existe una sesión activa (ej: al volver de Google OAuth)
   useEffect(() => {
     if (user) {
-      const userRole = user.user_metadata?.role || 'CLIENTE';
-      if (userRole === 'COMERCIO') {
+      const userRole = user.user_metadata?.role;
+      if (!userRole) {
+        navigate('/onboarding', { replace: true });
+      } else if (userRole === 'COMERCIO') {
         navigate('/merchant/dashboard', { replace: true });
       } else {
         navigate('/explore', { replace: true });
@@ -57,8 +59,10 @@ const LoginPage = () => {
         if (signInError) throw signInError;
 
         // Redirección protegida basada en el rol recuperado de la sesión
-        const userRole = data.user.user_metadata?.role || 'CLIENTE';
-        if (userRole === 'COMERCIO') {
+        const userRole = data.user.user_metadata?.role;
+        if (!userRole) {
+          navigate('/onboarding', { replace: true });
+        } else if (userRole === 'COMERCIO') {
           navigate('/merchant/dashboard', { replace: true });
         } else {
           navigate('/explore', { replace: true });

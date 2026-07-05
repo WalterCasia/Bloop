@@ -15,6 +15,7 @@ import MerchantStats from './components/merchant/MerchantStats';
 import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
 import NavigationLayout from './components/NavigationLayout';
+import RoleSelectionOnboarding from './components/RoleSelectionOnboarding';
 
 // Placeholder de vistas auxiliares para mantener el enrutador funcional
 const Unauthorized = () => <div style={{ textAlign: 'center', padding: '40px', color: 'red' }}><h1>Acceso Denegado (403)</h1><p>Tu rol no permite acceder a esta área.</p></div>;
@@ -39,10 +40,14 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // 2. Verificación Estricta de Autorización (RBAC)
-  // Se asume que el rol se inyecta en Supabase al registrar: user_metadata.role
-  const userRole = user.user_metadata?.role || 'CLIENTE';
+  // 2. Interceptar a usuarios registrados sin rol (ej. nuevos vía Google OAuth)
+  const userRole = user.user_metadata?.role;
+  
+  if (!userRole) {
+    return <Navigate to="/onboarding" replace />;
+  }
 
+  // 3. Verificación Estricta de Autorización (RBAC)
   if (requiredRole && userRole !== requiredRole) {
     return <Navigate to="/unauthorized" replace />;
   }
@@ -63,6 +68,12 @@ const App = () => {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
+          <Route 
+            path="/onboarding" 
+            element={
+              <RoleSelectionOnboarding />
+            } 
+          />
 
           {/* =======================
               Flujos Privados (App Shell)

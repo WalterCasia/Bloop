@@ -9,8 +9,10 @@ const LandingPage = () => {
   // Redirigir si el usuario ya tiene sesión activa
   useEffect(() => {
     if (user) {
-      const userRole = user.user_metadata?.role || 'CLIENTE';
-      if (userRole === 'COMERCIO') {
+      const userRole = user.user_metadata?.role;
+      if (!userRole) {
+        navigate('/onboarding', { replace: true });
+      } else if (userRole === 'COMERCIO') {
         navigate('/merchant/dashboard', { replace: true });
       } else {
         navigate('/explore', { replace: true });
