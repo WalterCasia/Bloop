@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ReservationProvider } from './contexts/ReservationContext';
 
 // Importación de Componentes Principales
-import MapExplorer from './components/MapExplorer';
+import ClientExploreDashboard from './components/ClientExploreDashboard';
 import CustomerOrders from './components/orders/CustomerOrders';
 import CustomerProfile from './components/CustomerProfile';
 import PackDetail from './components/PackDetail';
@@ -108,7 +108,7 @@ const App = () => {
               path="/explore" 
               element={
                 <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
-                  <MapExplorer />
+                  <ClientExploreDashboard />
                 </ProtectedRoute>
               } 
             />
