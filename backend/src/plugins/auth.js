@@ -12,7 +12,11 @@ async function authPlugin(fastify, opts) {
       if (token && token.header && token.header.kid) {
         try {
           const domain = `${config.supabaseUrl}/auth/v1/jwks`;
-          const publicKey = await getJwks.getPublicKey({ kid: token.header.kid, domain });
+          // Supabase requiere la anon key (como param o header) para acceder a cualquier ruta
+          const publicKey = await getJwks.getPublicKey({ 
+            kid: token.header.kid, 
+            domain: `${domain}?apikey=${config.supabaseAnonKey}` 
+          });
           return publicKey;
         } catch (err) {
           request.log.error('Error fetching JWKS: ' + err.message);
