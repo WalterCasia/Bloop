@@ -16,6 +16,7 @@ export const config = {
   host: process.env.HOST || '0.0.0.0',
   databaseUrl: process.env.DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET,
+  supabaseUrl: process.env.SUPABASE_URL || 'https://rcatkcuspudpmunpjzjm.supabase.co',
   upstash: {
     url: process.env.UPSTASH_REDIS_REST_URL,
     token: process.env.UPSTASH_REDIS_REST_TOKEN
