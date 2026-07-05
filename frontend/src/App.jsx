@@ -16,6 +16,8 @@ import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
 import NavigationLayout from './components/NavigationLayout';
 import RoleSelectionOnboarding from './components/RoleSelectionOnboarding';
+import ClientProfilePreferences from './components/ClientProfilePreferences';
+import MerchantMandatoryOnboarding from './components/MerchantMandatoryOnboarding';
 
 // Placeholder de vistas auxiliares para mantener el enrutador funcional
 const Unauthorized = () => <div style={{ textAlign: 'center', padding: '40px', color: 'red' }}><h1>Acceso Denegado (403)</h1><p>Tu rol no permite acceder a esta área.</p></div>;
@@ -24,7 +26,7 @@ const Unauthorized = () => <div style={{ textAlign: 'center', padding: '40px', c
  * Componente de Protección de Rutas (Higher Order Component)
  * Valida la autenticación y autoriza el acceso basado en el rol del metadata de Supabase.
  */
-const ProtectedRoute = ({ children, requiredRole }) => {
+const ProtectedRoute = ({ children, requiredRole, requireOnboarding = false }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -50,6 +52,14 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   // 3. Verificación Estricta de Autorización (RBAC)
   if (requiredRole && userRole !== requiredRole) {
     return <Navigate to="/unauthorized" replace />;
+  }
+
+  // 4. Verificación de Onboarding Obligatorio para Comercios
+  if (requireOnboarding && userRole === 'COMERCIO') {
+    const isCompleted = user.user_metadata?.onboarding_completed === true;
+    if (!isCompleted) {
+      return <Navigate to="/merchant/onboarding" replace />;
+    }
   }
 
   return children;
@@ -106,6 +116,15 @@ const App = () => {
                 </ProtectedRoute>
               } 
             />
+
+            <Route 
+              path="/client/preferences" 
+              element={
+                <ProtectedRoute requiredRole="CLIENTE">
+                  <ClientProfilePreferences />
+                </ProtectedRoute>
+              } 
+            />
             
             <Route 
               path="/packs/:id" 
@@ -129,23 +148,32 @@ const App = () => {
 
             {/* Rutas Comercio */}
             <Route 
-              path="/merchant/dashboard" 
+              path="/merchant/onboarding" 
               element={
                 <ProtectedRoute requiredRole="COMERCIO">
+                  <MerchantMandatoryOnboarding />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/merchant/dashboard" 
+              element={
+                <ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}>
                   <MerchantDashboard />
                 </ProtectedRoute>
               } 
             />
             
             <Route 
-              path="/merchant/stock" 
+              path="/merchant/daily-stock" 
               element={
-                <ProtectedRoute requiredRole="COMERCIO">
+                <ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}>
                   <DailyStockDashboard />
                 </ProtectedRoute>
               } 
             />
-
+            
             <Route 
               path="/merchant/profile" 
               element={
@@ -158,7 +186,7 @@ const App = () => {
             <Route 
               path="/merchant/stats" 
               element={
-                <ProtectedRoute requiredRole="COMERCIO">
+                <ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}>
                   <MerchantStats />
                 </ProtectedRoute>
               } 
