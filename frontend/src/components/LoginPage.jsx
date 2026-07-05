@@ -100,7 +100,25 @@ const LoginPage = () => {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9FAFB', fontFamily: 'sans-serif' }}>
       <div style={{ width: '100%', maxWidth: '400px', backgroundColor: 'white', padding: '32px', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', border: '1px solid #F3F4F6' }}>
-        
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <button 
+            type="button"
+            onClick={() => navigate('/')}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              cursor: 'pointer',
+              fontSize: '2rem', 
+              fontWeight: '900', 
+              color: '#16A34A', 
+              letterSpacing: '-0.05em',
+              padding: 0
+            }}
+          >
+            Bloop.
+          </button>
+        </div>
+
         <h2 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#111827', textAlign: 'center', marginBottom: '8px' }}>
           {isSignUp ? 'Crear una cuenta' : 'Bienvenido de nuevo'}
         </h2>
