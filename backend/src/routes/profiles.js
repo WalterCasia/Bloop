@@ -246,15 +246,18 @@ export default async function profileRoutes(fastify, options) {
     try {
       const defaultName = full_name || 'Usuario Bloop';
       const query = `
-        INSERT INTO public.profiles (id, role, full_name)
-        VALUES ($1, $2, $3)
+        INSERT INTO public.profiles (id, role, full_name, store_name, address, location)
+        VALUES ($1, $2, $3, $4, $5, ST_SetSRID(ST_MakePoint(0, 0), 4326))
         ON CONFLICT (id) DO UPDATE SET
           role = EXCLUDED.role,
           updated_at = NOW()
         RETURNING id, role, full_name
       `;
       
-      const { rows } = await client.query(query, [userId, role, defaultName]);
+      const storeName = role === 'COMERCIO' ? 'Pendiente' : null;
+      const address = role === 'COMERCIO' ? 'Pendiente' : null;
+      
+      const { rows } = await client.query(query, [userId, role, defaultName, storeName, address]);
 
       return reply.code(200).send({
         status: 'success',
