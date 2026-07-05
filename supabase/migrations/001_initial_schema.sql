@@ -97,3 +97,33 @@ CREATE TRIGGER update_surprise_packs_modtime
     
 CREATE TRIGGER update_orders_modtime 
     BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- ==========================================
+-- POLÍTICAS DE SEGURIDAD RLS (Row Level Security)
+-- ==========================================
+
+-- Habilitar RLS en las tablas
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.surprise_packs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- 1. Políticas para Orders (Vital para proteger Supabase Realtime WebSockets)
+-- Los clientes pueden ver sus propios pedidos
+CREATE POLICY "Clientes pueden ver sus pedidos" 
+ON public.orders FOR SELECT 
+USING (auth.uid() = client_id);
+
+-- Los comercios pueden ver los pedidos de su tienda
+CREATE POLICY "Comercios pueden ver pedidos de su tienda" 
+ON public.orders FOR SELECT 
+USING (auth.uid() = store_id);
+
+-- 2. Políticas para Surprise Packs (Catálogo público para autenticados)
+CREATE POLICY "Cualquier usuario autenticado puede ver los packs"
+ON public.surprise_packs FOR SELECT
+USING (auth.role() = 'authenticated');
+
+-- 3. Políticas para Profiles (Públicas para que los clientes vean datos de comercios)
+CREATE POLICY "Cualquier usuario autenticado puede ver los perfiles"
+ON public.profiles FOR SELECT
+USING (auth.role() = 'authenticated');

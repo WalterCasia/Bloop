@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ReservationProvider } from './contexts/ReservationContext';
 
 // Importación de Componentes Principales
 import MapExplorer from './components/MapExplorer';
@@ -45,10 +46,11 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 
 const App = () => {
   return (
-    // Envolvemos toda la app en el Contexto de Autenticación
+    // Envolvemos toda la app en el Contexto de Autenticación y Reservas
     <AuthProvider>
-      <Router>
-        <Routes>
+      <ReservationProvider>
+        <Router>
+          <Routes>
           {/* =======================
               Flujos Públicos
              ======================= */}
@@ -105,6 +107,7 @@ const App = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
+      </ReservationProvider>
     </AuthProvider>
   );
 };

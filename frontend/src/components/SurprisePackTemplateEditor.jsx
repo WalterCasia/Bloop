@@ -1,0 +1,256 @@
+import React, { useState, useEffect } from 'react';
+
+/**
+ * SurprisePackTemplateEditor
+ * Componente B2B para crear plantillas de "Packs Sorpresa"
+ * Incluye anclaje financiero automático y validación de ventanas de recogida.
+ */
+const SurprisePackTemplateEditor = () => {
+  const [formData, setFormData] = useState({
+    title: '',
+    category: '',
+    description: '',
+    instructions: '',
+    originalPrice: '',
+    startTime: '',
+    endTime: ''
+  });
+
+  // Rango de descuento estandarizado por plataforma (66% a 70%)
+  const [discountRate, setDiscountRate] = useState(66);
+  const [salePrice, setSalePrice] = useState('0.00');
+  const [timeError, setTimeError] = useState('');
+
+  // Efecto de Anclaje Financiero Automático
+  useEffect(() => {
+    const original = parseFloat(formData.originalPrice);
+    if (!isNaN(original) && original > 0) {
+      // Calculamos el precio de venta bloqueado
+      const calculatedSalePrice = original * (1 - discountRate / 100);
+      setSalePrice(calculatedSalePrice.toFixed(2));
+    } else {
+      setSalePrice('0.00');
+    }
+  }, [formData.originalPrice, discountRate]);
+
+  // Efecto de Validación Estricta de Horarios
+  useEffect(() => {
+    if (formData.startTime && formData.endTime) {
+      if (formData.startTime >= formData.endTime) {
+        setTimeError('Aviso: La recogida cruzará la medianoche y terminará al día siguiente.');
+      } else {
+        setTimeError('');
+      }
+    }
+  }, [formData.startTime, formData.endTime]);
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleDiscountChange = (e) => {
+    setDiscountRate(parseInt(e.target.value, 10));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (timeError) return;
+    
+    const payload = {
+      ...formData,
+      discountRate,
+      salePrice: parseFloat(salePrice)
+    };
+    
+    // Aquí se conectaría con la API POST /api/merchant/packs/template
+    console.log('Guardando plantilla:', payload);
+    alert('Plantilla guardada correctamente en el sistema.');
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 font-sans p-4 md:p-8">
+      <div className="max-w-4xl mx-auto bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
+        
+        {/* Cabecera del Editor */}
+        <div className="bg-gray-900 px-6 py-5 border-b border-gray-800">
+          <h2 className="text-xl font-bold text-white">Editor de Plantilla: Pack Sorpresa</h2>
+          <p className="text-gray-400 text-sm mt-1">Configura las reglas de tu inventario diario de rescate de alimentos.</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-8">
+          
+          {/* SECCIÓN 1: Información General */}
+          <section>
+            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
+              1. Identidad del Pack
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Nombre Comercial</label>
+                <input
+                  type="text"
+                  name="title"
+                  required
+                  value={formData.title}
+                  onChange={handleChange}
+                  placeholder="Ej. Pack Sorpresa de Bollería"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Categoría</label>
+                <select
+                  name="category"
+                  required
+                  value={formData.category}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 focus:bg-white"
+                >
+                  <option value="" disabled>Seleccionar...</option>
+                  <option value="panaderia">Panadería</option>
+                  <option value="comida_preparada">Comida Preparada</option>
+                  <option value="abarrotes">Abarrotes y Fruta</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Descripción del contenido (Ejemplos)</label>
+                <textarea
+                  name="description"
+                  required
+                  rows="2"
+                  value={formData.description}
+                  onChange={handleChange}
+                  placeholder="Ej. Puede contener pan dulce, croissants del día anterior o tartas."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 focus:bg-white resize-none"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Instrucciones Operativas para el Cliente</label>
+                <input
+                  type="text"
+                  name="instructions"
+                  value={formData.instructions}
+                  onChange={handleChange}
+                  placeholder="Ej. Traer bolsa propia. Entrar por la puerta lateral."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 focus:bg-white"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* SECCIÓN 2: Anclaje Financiero */}
+          <section className="bg-blue-50 rounded-lg p-5 border border-blue-100">
+            <h3 className="text-sm font-bold text-blue-900 uppercase tracking-wider mb-4">
+              2. Modelo Financiero y Descuentos
+            </h3>
+            <p className="text-sm text-blue-700 mb-5">
+              Nuestra política exige un descuento mínimo del 66% para garantizar la venta rápida y evitar el desperdicio.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+              
+              {/* Valor Original */}
+              <div className="bg-white p-4 rounded-md border border-gray-200 shadow-sm">
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Valor Original (Q)</label>
+                <input
+                  type="number"
+                  name="originalPrice"
+                  required
+                  min="1"
+                  step="0.01"
+                  value={formData.originalPrice}
+                  onChange={handleChange}
+                  placeholder="Ej. 60.00"
+                  className="w-full text-2xl font-black text-gray-900 border-none focus:ring-0 p-0"
+                />
+              </div>
+
+              {/* Selector de Descuento */}
+              <div className="flex flex-col items-center">
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Descuento Ofrecido</label>
+                <input 
+                  type="range" 
+                  min="66" 
+                  max="70" 
+                  step="1" 
+                  value={discountRate} 
+                  onChange={handleDiscountChange}
+                  className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer"
+                />
+                <span className="mt-2 text-xl font-black text-blue-600">{discountRate}% OFF</span>
+              </div>
+
+              {/* Precio de Venta Bloqueado */}
+              <div className="bg-gray-900 p-4 rounded-md shadow-sm border border-black">
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Precio al Público (Q)</label>
+                <div className="text-3xl font-black text-green-400">
+                  {salePrice}
+                </div>
+              </div>
+
+            </div>
+          </section>
+
+          {/* SECCIÓN 3: Logística de Recogida */}
+          <section>
+            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
+              3. Ventana Estricta de Recogida
+            </h3>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Hora de Inicio</label>
+                <input
+                  type="time"
+                  name="startTime"
+                  required
+                  value={formData.startTime}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Hora Límite</label>
+                <input
+                  type="time"
+                  name="endTime"
+                  required
+                  value={formData.endTime}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white"
+                />
+              </div>
+            </div>
+
+            {timeError && (
+              <div className="mt-3 text-sm font-bold text-blue-800 bg-blue-100 p-3 rounded border border-blue-200">
+                {timeError}
+              </div>
+            )}
+          </section>
+
+          {/* Acciones */}
+          <div className="pt-6 flex justify-end">
+            <button
+              type="submit"
+              disabled={!formData.originalPrice}
+              className="px-8 py-3 bg-gray-900 text-white text-sm font-bold rounded-md hover:bg-black transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md"
+            >
+              Guardar Plantilla Base
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default SurprisePackTemplateEditor;

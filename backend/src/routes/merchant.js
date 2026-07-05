@@ -121,4 +121,71 @@ export default async function merchantRoutes(fastify, options) {
       client.release();
     }
   });
+
+  // Endpoint para sincronización manual de inventario desde el Panel del Comercio
+  fastify.post('/api/merchant/stock/sync', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          packId: { type: 'string', format: 'uuid' },
+          availableStock: { type: 'integer', minimum: 0 },
+          status: { type: 'string', enum: ['ACTIVE', 'SOLD_OUT'] }
+        },
+        required: ['packId', 'availableStock', 'status']
+      }
+    }
+  }, async (request, reply) => {
+    const { packId, availableStock, status } = request.body;
+    const storeId = request.user.sub || request.user.id;
+
+    const client = await fastify.pg.connect();
+    try {
+      await client.query('BEGIN');
+
+      // 1. Verificamos pertenencia y actualizamos BD Maestra
+      const updateResult = await client.query(`
+        UPDATE public.surprise_packs 
+        SET available_quantity = $1, updated_at = NOW() 
+        WHERE id = $2 AND store_id = $3 
+        RETURNING id
+      `, [availableStock, packId, storeId]);
+
+      if (updateResult.rowCount === 0) {
+        throw new Error('UNAUTHORIZED_OR_NOT_FOUND');
+      }
+
+      // 2. Sincronizamos la verdad absoluta en Redis para los consumidores
+      const stockKey = `pack:${packId}:stock`;
+      await fastify.redis.set(stockKey, availableStock);
+
+      // 3. Cancelación Estricta (Hard Cancel) si se marcó como agotado
+      if (status === 'SOLD_OUT' || availableStock === 0) {
+        // Usamos KEYS en Upstash (equivalente simple para este caso de uso o SCAN). 
+        // Upstash soporta keys() directamente en su cliente web HTTP
+        const keysToDelete = await fastify.redis.keys(`reservation:${packId}:*`);
+        
+        if (keysToDelete.length > 0) {
+          // Eliminamos todos los bloqueos (los usuarios verán error al intentar pagar)
+          await fastify.redis.del(...keysToDelete);
+          fastify.log.info(`Hard Cancel ejecutado: Se liberaron ${keysToDelete.length} bloqueos de Redis.`);
+        }
+      }
+
+      await client.query('COMMIT');
+      return reply.code(200).send({ status: 'success', message: 'Inventario sincronizado correctamente.' });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      fastify.log.error(error);
+      
+      if (error.message === 'UNAUTHORIZED_OR_NOT_FOUND') {
+        return reply.code(403).send({ error: 'Forbidden', message: 'No tienes permiso para modificar este pack.' });
+      }
+
+      return reply.code(500).send({ error: 'Internal Server Error', message: 'Error al sincronizar el inventario.' });
+    } finally {
+      client.release();
+    }
+  });
 }

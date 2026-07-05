@@ -134,4 +134,47 @@ export default async function packRoutes(fastify, options) {
       });
     }
   });
+
+  // Endpoint para cancelar voluntariamente (o por timeout) una reserva temporal
+  fastify.post('/api/packs/:id/cancel-reservation', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' }
+        },
+        required: ['id']
+      }
+    }
+  }, async (request, reply) => {
+    const packId = request.params.id;
+    const clientId = request.user.sub || request.user.id; 
+    
+    const stockKey = `pack:${packId}:stock`;
+    const lockKey = `reservation:${packId}:${clientId}`;
+
+    try {
+      // Intentamos eliminar el bloqueo de este usuario
+      const deletedCount = await fastify.redis.del(lockKey);
+      
+      if (deletedCount > 0) {
+        // Si efectivamente se borró (el usuario tenía un lock activo),
+        // devolvemos atómicamente la unidad al stock disponible de Redis.
+        await fastify.redis.incr(stockKey);
+        fastify.log.info(`Reserva liberada para el cliente ${clientId} en el pack ${packId}`);
+      }
+
+      return reply.code(200).send({
+        status: 'success',
+        message: 'Reserva cancelada y stock liberado correctamente.'
+      });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ 
+        error: 'Internal Server Error', 
+        message: 'Error al liberar el stock en Redis.' 
+      });
+    }
+  });
 }
