@@ -1,12 +1,21 @@
 -- Habilitar extensión PostGIS en Supabase para consultas geoespaciales
 CREATE EXTENSION IF NOT EXISTS postgis;
 
--- Tipos Enumerados (ENUMS) para roles y estados de pedido
-CREATE TYPE public.user_role AS ENUM ('CLIENTE', 'COMERCIO', 'ADMIN');
-CREATE TYPE public.order_status AS ENUM ('PENDIENTE', 'PAGADO', 'RECOGIDO', 'CANCELADO');
+-- Tipos Enumerados (ENUMS) para roles y estados de pedido (Idempotentes)
+DO $$ BEGIN
+    CREATE TYPE public.user_role AS ENUM ('CLIENTE', 'COMERCIO', 'ADMIN');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE public.order_status AS ENUM ('PENDIENTE', 'PAGADO', 'RECOGIDO', 'CANCELADO');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Tabla unificada de Perfiles (Usuarios y Comercios)
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     role public.user_role NOT NULL DEFAULT 'CLIENTE',
     full_name VARCHAR(255) NOT NULL,
@@ -31,10 +40,10 @@ CREATE TABLE public.profiles (
 );
 
 -- Índice GIST espacial para optimizar búsquedas geolocalizadas de comercios
-CREATE INDEX idx_profiles_location ON public.profiles USING GIST (location) WHERE role = 'COMERCIO';
+CREATE INDEX IF NOT EXISTS idx_profiles_location ON public.profiles USING GIST (location) WHERE role = 'COMERCIO';
 
 -- Tabla de Packs Sorpresa
-CREATE TABLE public.surprise_packs (
+CREATE TABLE IF NOT EXISTS public.surprise_packs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     store_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
@@ -55,12 +64,12 @@ CREATE TABLE public.surprise_packs (
 );
 
 -- Índices para optimizar consultas de inventario activo y por comercio
-CREATE INDEX idx_surprise_packs_store_id ON public.surprise_packs(store_id);
-CREATE INDEX idx_surprise_packs_pickup_time ON public.surprise_packs(pickup_start_time, pickup_end_time);
-CREATE INDEX idx_surprise_packs_active ON public.surprise_packs(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_surprise_packs_store_id ON public.surprise_packs(store_id);
+CREATE INDEX IF NOT EXISTS idx_surprise_packs_pickup_time ON public.surprise_packs(pickup_start_time, pickup_end_time);
+CREATE INDEX IF NOT EXISTS idx_surprise_packs_active ON public.surprise_packs(is_active) WHERE is_active = true;
 
 -- Tabla de Pedidos (Reservas)
-CREATE TABLE public.orders (
+CREATE TABLE IF NOT EXISTS public.orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     client_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
     pack_id UUID NOT NULL REFERENCES public.surprise_packs(id) ON DELETE RESTRICT,
@@ -74,10 +83,10 @@ CREATE TABLE public.orders (
 );
 
 -- Índices para historial y gestión operativa de pedidos
-CREATE INDEX idx_orders_client_id ON public.orders(client_id);
-CREATE INDEX idx_orders_store_id ON public.orders(store_id);
-CREATE INDEX idx_orders_pack_id ON public.orders(pack_id);
-CREATE INDEX idx_orders_status ON public.orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_client_id ON public.orders(client_id);
+CREATE INDEX IF NOT EXISTS idx_orders_store_id ON public.orders(store_id);
+CREATE INDEX IF NOT EXISTS idx_orders_pack_id ON public.orders(pack_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
 
 -- Función general para actualizar el timestamp en modificaciones
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
@@ -88,13 +97,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Triggers de actualización para mantener consistencia de tiempos
+-- Triggers de actualización para mantener consistencia de tiempos (Idempotentes con DROP IF EXISTS)
+DROP TRIGGER IF EXISTS update_profiles_modtime ON public.profiles;
 CREATE TRIGGER update_profiles_modtime 
     BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
     
+DROP TRIGGER IF EXISTS update_surprise_packs_modtime ON public.surprise_packs;
 CREATE TRIGGER update_surprise_packs_modtime 
     BEFORE UPDATE ON public.surprise_packs FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
     
+DROP TRIGGER IF EXISTS update_orders_modtime ON public.orders;
 CREATE TRIGGER update_orders_modtime 
     BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -108,22 +120,24 @@ ALTER TABLE public.surprise_packs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- 1. Políticas para Orders (Vital para proteger Supabase Realtime WebSockets)
--- Los clientes pueden ver sus propios pedidos
+DROP POLICY IF EXISTS "Clientes pueden ver sus pedidos" ON public.orders;
 CREATE POLICY "Clientes pueden ver sus pedidos" 
 ON public.orders FOR SELECT 
 USING (auth.uid() = client_id);
 
--- Los comercios pueden ver los pedidos de su tienda
+DROP POLICY IF EXISTS "Comercios pueden ver pedidos de su tienda" ON public.orders;
 CREATE POLICY "Comercios pueden ver pedidos de su tienda" 
 ON public.orders FOR SELECT 
 USING (auth.uid() = store_id);
 
 -- 2. Políticas para Surprise Packs (Catálogo público para autenticados)
+DROP POLICY IF EXISTS "Cualquier usuario autenticado puede ver los packs" ON public.surprise_packs;
 CREATE POLICY "Cualquier usuario autenticado puede ver los packs"
 ON public.surprise_packs FOR SELECT
 USING (auth.role() = 'authenticated');
 
 -- 3. Políticas para Profiles (Públicas para que los clientes vean datos de comercios)
+DROP POLICY IF EXISTS "Cualquier usuario autenticado puede ver los perfiles" ON public.profiles;
 CREATE POLICY "Cualquier usuario autenticado puede ver los perfiles"
 ON public.profiles FOR SELECT
 USING (auth.role() = 'authenticated');
