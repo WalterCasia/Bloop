@@ -3,7 +3,8 @@ import fastifyJwt from '@fastify/jwt';
 import buildGetJwks from 'get-jwks';
 import { config } from '../config/env.js';
 
-const getJwks = buildGetJwks();
+// Importante: jwksPath vacío porque pasaremos la URL exacta con los parámetros a `domain`
+const getJwks = buildGetJwks({ jwksPath: '' });
 
 async function authPlugin(fastify, opts) {
   await fastify.register(fastifyJwt, {
@@ -11,11 +12,12 @@ async function authPlugin(fastify, opts) {
     secret: async (request, token) => {
       if (token && token.header && token.header.kid) {
         try {
-          const domain = `${config.supabaseUrl}/auth/v1/jwks`;
-          // Supabase requiere la anon key (como param o header) para acceder a cualquier ruta
+          // La ruta exacta de JWKS en Supabase es /auth/v1/.well-known/jwks.json
+          const domain = `${config.supabaseUrl}/auth/v1/.well-known/jwks.json?apikey=${config.supabaseAnonKey}`;
+          
           const publicKey = await getJwks.getPublicKey({ 
             kid: token.header.kid, 
-            domain: `${domain}?apikey=${config.supabaseAnonKey}` 
+            domain: domain 
           });
           return publicKey;
         } catch (err) {
