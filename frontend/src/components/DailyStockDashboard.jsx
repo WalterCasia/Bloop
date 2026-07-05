@@ -27,10 +27,16 @@ const DailyStockDashboard = () => {
           lastValidStock.current = response.data.pack.availableStock;
         }
       } catch (err) {
-        setErrorModal({
-          title: 'Error de Conexión',
-          message: err.response?.data?.message || 'No se pudo cargar el inventario actual.'
-        });
+        // Si el error es 404, significa que simplemente no hay packs.
+        // No mostramos un error, dejamos que muestre la pantalla "Sin Packs Activos".
+        if (err.response && err.response.status === 404) {
+          setPackData(null);
+        } else {
+          setErrorModal({
+            title: 'Error de Conexión',
+            message: err.response?.data?.message || 'No se pudo cargar el inventario actual.'
+          });
+        }
       } finally {
         setIsLoading(false);
       }
