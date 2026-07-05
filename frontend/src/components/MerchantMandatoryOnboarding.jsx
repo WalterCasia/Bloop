@@ -12,13 +12,16 @@ const MerchantMandatoryOnboarding = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
-  const [formData, setFormData] = useState({
-    storeName: '',
-    category: '',
-    address: '',
-    bankAccount: ''
-  });
+  const [step, setStep] = useState(1);
+  
+  // Paso 1
+  const [managerName, setManagerName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [storeName, setStoreName] = useState('');
+  const [category, setCategory] = useState('');
 
+  // Paso 2
+  const [address, setAddress] = useState('');
   const [coords, setCoords] = useState(null);
   const [showMap, setShowMap] = useState(false);
   const [viewState, setViewState] = useState({
@@ -26,30 +29,28 @@ const MerchantMandatoryOnboarding = () => {
     latitude: 19.4326,
     zoom: 12
   });
+  const [isGeocoding, setIsGeocoding] = useState(false);
+
+  // Paso 3
+  const [pickupStart, setPickupStart] = useState('');
+  const [pickupEnd, setPickupEnd] = useState('');
+  const [bankAccount, setBankAccount] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
-  const [isGeocoding, setIsGeocoding] = useState(false);
   const [error, setError] = useState('');
 
-  // Validaciones
-  const isFormValid = () => {
-    return (
-      formData.storeName.trim().length >= 3 &&
-      formData.category !== '' &&
-      formData.address.trim().length >= 10 &&
-      formData.bankAccount.trim().length >= 10 &&
-      coords !== null // Debe tener coordenadas
-    );
-  };
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleNext = () => {
     setError('');
+    setStep(step + 1);
   };
 
-  // Simulación de Geocodificación o uso real con fetch a Mapbox
+  const handleBack = () => {
+    setError('');
+    setStep(step - 1);
+  };
+
   const handleVerifyAddress = async () => {
-    if (formData.address.trim().length < 5) {
+    if (address.trim().length < 5) {
       setError('Ingresa una dirección más detallada antes de verificar.');
       return;
     }
@@ -58,17 +59,15 @@ const MerchantMandatoryOnboarding = () => {
     setError('');
 
     try {
-      // Intento de geocodificación con la API real de Mapbox
-      const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(formData.address)}.json?access_token=${MAPBOX_TOKEN}&limit=1`);
+      const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&limit=1`);
       const data = await response.json();
 
       if (data.features && data.features.length > 0) {
         const [lng, lat] = data.features[0].center;
         setCoords({ lng, lat });
         setViewState({ longitude: lng, latitude: lat, zoom: 15 });
-        setShowMap(true); // Mostrar el mapa para confirmación
+        setShowMap(true);
       } else {
-        // Fallback: Si no se encuentra, habilitar el mapa manual
         setError('No pudimos encontrar la ubicación exacta. Por favor, ubícala manualmente en el mapa.');
         setShowMap(true);
         setCoords(null);
@@ -88,29 +87,29 @@ const MerchantMandatoryOnboarding = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isFormValid()) return;
-
     setIsLoading(true);
     setError('');
 
     try {
-      // 1. Enviar la data al Backend (Fastify) para guardar en PostGIS
       const payload = {
-        store_name: formData.storeName,
-        category: formData.category,
-        address: formData.address,
-        bank_account: formData.bankAccount,
+        store_name: storeName,
+        category: category,
+        address: address,
+        bank_account: bankAccount,
         lng: coords.lng,
-        lat: coords.lat
+        lat: coords.lat,
+        manager_name: managerName,
+        phone: phone,
+        pickup_start: pickupStart,
+        pickup_end: pickupEnd
       };
       
       await apiClient.put('/api/merchant/profile', payload);
 
-      // 2. Actualizar el estado en Supabase Auth para liberar el acceso
       const { error: updateError } = await supabase.auth.updateUser({
         data: { 
           onboarding_completed: true,
-          store_name: formData.storeName 
+          store_name: storeName 
         }
       });
       if (updateError) throw updateError;
@@ -126,12 +125,20 @@ const MerchantMandatoryOnboarding = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
-      <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 font-sans flex flex-col justify-center">
+      <div className="max-w-2xl mx-auto w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
         
-        <div className="bg-gray-900 px-8 py-8 text-white">
+        {/* Header con Indicador de Progreso */}
+        <div className="bg-gray-900 px-8 py-8 text-white relative">
           <h1 className="text-2xl font-bold mb-2">Configuración Inicial del Comercio</h1>
-          <p className="text-gray-400 text-sm">Completa todos los campos obligatorios para activar tu cuenta y comenzar a vender tus excedentes.</p>
+          <p className="text-gray-400 text-sm">Paso {step} de 3</p>
+          
+          <div className="absolute bottom-0 left-0 h-1 bg-gray-700 w-full">
+            <div 
+              className="h-full bg-blue-500 transition-all duration-300" 
+              style={{ width: `${(step / 3) * 100}%` }}
+            ></div>
+          </div>
         </div>
 
         <div className="p-8">
@@ -141,123 +148,196 @@ const MerchantMandatoryOnboarding = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Nombre de la tienda */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre Comercial *</label>
-                <input
-                  type="text"
-                  name="storeName"
-                  value={formData.storeName}
-                  onChange={handleChange}
-                  required
-                  minLength={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="Ej. Panadería Doña María"
-                />
-              </div>
-
-              {/* Categoría */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Categoría *</label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                >
-                  <option value="" disabled>Selecciona una categoría...</option>
-                  <option value="Panadería">Panadería / Pastelería</option>
-                  <option value="Restaurante">Restaurante</option>
-                  <option value="Supermercado">Supermercado</option>
-                  <option value="Cafetería">Cafetería</option>
-                  <option value="Otro">Otro</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Dirección y Mapa */}
-            <div className="border border-gray-200 rounded-xl p-6 bg-gray-50">
-              <h3 className="text-md font-bold text-gray-900 mb-4">Ubicación Física *</h3>
+          {step === 1 && (
+            <div className="space-y-6 animate-fade-in">
+              <h2 className="text-xl font-bold text-gray-800 border-b pb-2">1. Identidad y Categoría</h2>
               
-              <div className="flex flex-col md:flex-row gap-4 mb-4">
-                <input
-                  type="text"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  required
-                  minLength={10}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="Dirección completa (Calle, número, colonia, ciudad)"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre Legal / Responsable</label>
+                  <input
+                    type="text"
+                    value={managerName}
+                    onChange={(e) => setManagerName(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Ej. Juan Pérez"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Teléfono Comercial</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Ej. 555-1234"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre Público de la Tienda</label>
+                  <input
+                    type="text"
+                    value={storeName}
+                    onChange={(e) => setStoreName(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Ej. Panadería Doña María"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Categoría Gastronómica</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  >
+                    <option value="" disabled>Selecciona una categoría...</option>
+                    <option value="Panadería">Panadería</option>
+                    <option value="Restaurante">Restaurante</option>
+                    <option value="Supermercado">Supermercado</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="pt-6 flex justify-end">
                 <button
-                  type="button"
-                  onClick={handleVerifyAddress}
-                  disabled={isGeocoding || formData.address.length < 10}
-                  className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg disabled:bg-gray-400 transition-colors"
+                  onClick={handleNext}
+                  disabled={!managerName || !phone || !storeName || !category}
+                  className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 transition-colors"
                 >
-                  {isGeocoding ? 'Buscando...' : 'Verificar Ubicación'}
+                  Siguiente
                 </button>
               </div>
+            </div>
+          )}
 
-              {showMap && (
-                <div className="mt-4 border-2 border-blue-200 rounded-lg overflow-hidden relative">
-                  <div className="absolute top-2 left-2 z-10 bg-white px-3 py-1 text-xs font-bold rounded-md shadow-md">
-                    Haz clic en el mapa para ajustar tu posición exacta
-                  </div>
-                  <Map
-                    {...viewState}
-                    onMove={evt => setViewState(evt.viewState)}
-                    onClick={handleMapClick}
-                    style={{ width: '100%', height: '300px' }}
-                    mapStyle="mapbox://styles/mapbox/streets-v12"
-                    mapboxAccessToken={MAPBOX_TOKEN}
-                    cursor="crosshair"
+          {step === 2 && (
+            <div className="space-y-6 animate-fade-in">
+              <h2 className="text-xl font-bold text-gray-800 border-b pb-2">2. Geocodificación (Mapbox)</h2>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Dirección Física</label>
+                <div className="flex flex-col md:flex-row gap-4 mb-4">
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Dirección completa"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleVerifyAddress}
+                    disabled={isGeocoding || address.length < 5}
+                    className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg disabled:bg-gray-400 transition-colors"
                   >
-                    {coords && (
-                      <Marker longitude={coords.lng} latitude={coords.lat} color="red" />
-                    )}
-                  </Map>
+                    {isGeocoding ? 'Buscando...' : 'Verificar Ubicación'}
+                  </button>
                 </div>
-              )}
-            </div>
 
-            {/* Datos Bancarios */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Cuenta Bancaria para Liquidaciones (CLABE) *</label>
-              <input
-                type="text"
-                name="bankAccount"
-                value={formData.bankAccount}
-                onChange={handleChange}
-                required
-                pattern="\d{10,18}"
-                maxLength={18}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="18 dígitos"
-              />
-              <p className="text-xs text-gray-500 mt-2">Requerido para transferirte las ganancias de tus packs vendidos.</p>
+                {showMap && (
+                  <div className="mt-4 border-2 border-blue-200 rounded-lg overflow-hidden relative">
+                    <div className="absolute top-2 left-2 z-10 bg-white px-3 py-1 text-xs font-bold rounded-md shadow-md">
+                      Haz clic en el mapa para ajustar tu posición
+                    </div>
+                    <Map
+                      {...viewState}
+                      onMove={evt => setViewState(evt.viewState)}
+                      onClick={handleMapClick}
+                      style={{ width: '100%', height: '300px' }}
+                      mapStyle="mapbox://styles/mapbox/streets-v12"
+                      mapboxAccessToken={MAPBOX_TOKEN}
+                      cursor="crosshair"
+                    >
+                      {coords && (
+                        <Marker longitude={coords.lng} latitude={coords.lat} color="red" />
+                      )}
+                    </Map>
+                  </div>
+                )}
+              </div>
+              
+              <div className="pt-6 flex justify-between">
+                <button
+                  onClick={handleBack}
+                  className="px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                >
+                  Atrás
+                </button>
+                <button
+                  onClick={handleNext}
+                  disabled={!coords}
+                  className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 transition-colors"
+                >
+                  Siguiente
+                </button>
+              </div>
             </div>
+          )}
 
-            <div className="pt-6 border-t flex justify-end">
-              <button
-                type="submit"
-                disabled={!isFormValid() || isLoading}
-                className={`px-8 py-3 rounded-xl font-bold text-white transition-all shadow-sm ${
-                  !isFormValid() || isLoading
-                    ? 'bg-gray-300 cursor-not-allowed text-gray-500'
-                    : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
-                }`}
-              >
-                {isLoading ? 'Finalizando...' : 'Completar Registro'}
-              </button>
+          {step === 3 && (
+            <div className="space-y-6 animate-fade-in">
+              <h2 className="text-xl font-bold text-gray-800 border-b pb-2">3. Datos Operativos y Bancarios</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Horario de Entrega (Inicio)</label>
+                  <input
+                    type="time"
+                    value={pickupStart}
+                    onChange={(e) => setPickupStart(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Horario de Entrega (Fin)</label>
+                  <input
+                    type="time"
+                    value={pickupEnd}
+                    onChange={(e) => setPickupEnd(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Cuenta Bancaria para Liquidaciones (CLABE)</label>
+                  <input
+                    type="text"
+                    value={bankAccount}
+                    onChange={(e) => setBankAccount(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="18 dígitos"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">Requerido para transferirte las ganancias de tus ventas.</p>
+                </div>
+              </div>
+              
+              <div className="pt-6 flex justify-between">
+                <button
+                  onClick={handleBack}
+                  disabled={isLoading}
+                  className="px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
+                >
+                  Atrás
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={!pickupStart || !pickupEnd || bankAccount.length < 10 || isLoading}
+                  className={`px-8 py-3 font-bold text-white rounded-xl transition-all shadow-sm flex items-center gap-2 ${
+                    !pickupStart || !pickupEnd || bankAccount.length < 10 || isLoading
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
+                  }`}
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Guardando...
+                    </>
+                  ) : 'Finalizar Onboarding'}
+                </button>
+              </div>
             </div>
+          )}
 
-          </form>
         </div>
       </div>
     </div>

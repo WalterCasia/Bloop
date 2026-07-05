@@ -33,10 +33,10 @@ const LandingPage = () => {
             Iniciar Sesión
           </button>
           <button 
-            onClick={() => navigate('/merchant/dashboard')}
+            onClick={() => navigate('/signup')}
             style={{ padding: '8px 16px', backgroundColor: '#111827', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
           >
-            Soy Comercio
+            Registrarse
           </button>
         </div>
       </nav>
@@ -54,10 +54,10 @@ const LandingPage = () => {
 
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
           <button 
-            onClick={() => navigate('/explore')}
+            onClick={() => navigate('/signup')}
             style={{ fontSize: '1.125rem', padding: '16px 32px', backgroundColor: '#16A34A', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(22, 163, 74, 0.2)' }}
           >
-            Explorar Packs Cercanos
+            Comenzar Ahora
           </button>
         </div>
       </main>

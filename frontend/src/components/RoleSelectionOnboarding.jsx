@@ -36,9 +36,9 @@ const RoleSelectionOnboarding = () => {
       await supabase.auth.refreshSession();
 
       if (selectedRole === 'CLIENTE') {
-        navigate('/explore', { replace: true });
+        navigate('/onboarding/client', { replace: true });
       } else if (selectedRole === 'COMERCIO') {
-        navigate('/merchant/dashboard', { replace: true });
+        navigate('/onboarding/merchant', { replace: true });
       }
     } catch (err) {
       console.error("Onboarding Error:", err);

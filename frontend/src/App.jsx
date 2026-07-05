@@ -14,8 +14,10 @@ import MerchantProfile from './components/merchant/MerchantProfile';
 import MerchantStats from './components/merchant/MerchantStats';
 import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
+import SignupPage from './components/SignupPage';
 import NavigationLayout from './components/NavigationLayout';
 import RoleSelectionOnboarding from './components/RoleSelectionOnboarding';
+import ClientOnboarding from './components/ClientOnboarding';
 import ClientProfilePreferences from './components/ClientProfilePreferences';
 import MerchantMandatoryOnboarding from './components/MerchantMandatoryOnboarding';
 import SurprisePackTemplateEditor from './components/SurprisePackTemplateEditor';
@@ -55,11 +57,12 @@ const ProtectedRoute = ({ children, requiredRole, requireOnboarding = false }) =
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // 4. Verificación de Onboarding Obligatorio para Comercios
-  if (requireOnboarding && userRole === 'COMERCIO') {
+  // 4. Verificación de Onboarding Obligatorio
+  if (requireOnboarding) {
     const isCompleted = user.user_metadata?.onboarding_completed === true;
     if (!isCompleted) {
-      return <Navigate to="/merchant/onboarding" replace />;
+      if (userRole === 'COMERCIO') return <Navigate to="/onboarding/merchant" replace />;
+      if (userRole === 'CLIENTE') return <Navigate to="/onboarding/client" replace />;
     }
   }
 
@@ -78,6 +81,7 @@ const App = () => {
              ======================= */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route 
             path="/onboarding" 
@@ -92,9 +96,18 @@ const App = () => {
           <Route element={<NavigationLayout />}>
             {/* Rutas Cliente */}
             <Route 
-              path="/explore" 
+              path="/onboarding/client" 
               element={
                 <ProtectedRoute requiredRole="CLIENTE">
+                  <ClientOnboarding />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/explore" 
+              element={
+                <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
                   <MapExplorer />
                 </ProtectedRoute>
               } 
@@ -103,7 +116,7 @@ const App = () => {
             <Route 
               path="/customer/orders" 
               element={
-                <ProtectedRoute requiredRole="CLIENTE">
+                <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
                   <CustomerOrders />
                 </ProtectedRoute>
               } 
@@ -112,7 +125,7 @@ const App = () => {
             <Route 
               path="/profile" 
               element={
-                <ProtectedRoute requiredRole="CLIENTE">
+                <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
                   <CustomerProfile />
                 </ProtectedRoute>
               } 
@@ -121,7 +134,7 @@ const App = () => {
             <Route 
               path="/client/preferences" 
               element={
-                <ProtectedRoute requiredRole="CLIENTE">
+                <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
                   <ClientProfilePreferences />
                 </ProtectedRoute>
               } 
@@ -130,7 +143,7 @@ const App = () => {
             <Route 
               path="/packs/:id" 
               element={
-                <ProtectedRoute requiredRole="CLIENTE">
+                <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
                   <PackDetail 
                     pack={{ 
                       pack_id: 'sample-uuid-1234', 
@@ -149,7 +162,7 @@ const App = () => {
 
             {/* Rutas Comercio */}
             <Route 
-              path="/merchant/onboarding" 
+              path="/onboarding/merchant" 
               element={
                 <ProtectedRoute requiredRole="COMERCIO">
                   <MerchantMandatoryOnboarding />

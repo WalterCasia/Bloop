@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
-const LoginPage = () => {
+const SignupPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [email, setEmail] = useState('');
@@ -11,7 +11,7 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Redirigir automáticamente si ya existe una sesión activa (ej: al volver de Google OAuth)
+  // Redirigir automáticamente si ya existe una sesión activa
   useEffect(() => {
     if (user) {
       const userRole = user.user_metadata?.role;
@@ -27,39 +27,34 @@ const LoginPage = () => {
     }
   }, [user, navigate]);
 
-  const handleAuth = async (e) => {
+  const handleSignUp = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      // Inicio de sesión
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      // Registro de usuario sin rol para forzar onboarding estilo Upwork
+      const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
       });
 
-      if (signInError) throw signInError;
-
-      // Redirección protegida basada en el rol recuperado de la sesión
-      const userRole = data.user.user_metadata?.role;
-      const onboardingCompleted = data.user.user_metadata?.onboarding_completed;
+      if (signUpError) throw signUpError;
       
-      if (!userRole || !onboardingCompleted) {
-        navigate('/onboarding', { replace: true });
-      } else if (userRole === 'COMERCIO') {
-        navigate('/merchant/dashboard', { replace: true });
-      } else {
-        navigate('/explore', { replace: true });
+      alert('Registro exitoso. Serás redirigido para completar tu perfil.');
+      // Supabase inicia sesión automáticamente en muchos casos
+      // Si no lo hace, mandamos a login
+      if (!user) {
+         navigate('/login');
       }
     } catch (err) {
-      setError(err.message || 'Ha ocurrido un error durante la autenticación.');
+      setError(err.message || 'Ha ocurrido un error durante el registro.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignUp = async () => {
     try {
       setLoading(true);
       setError('');
@@ -76,7 +71,7 @@ const LoginPage = () => {
       
       if (error) throw error;
     } catch (err) {
-      setError(err.message || 'Error al iniciar sesión con Google.');
+      setError(err.message || 'Error al registrarse con Google.');
       setLoading(false);
     }
   };
@@ -104,10 +99,10 @@ const LoginPage = () => {
         </div>
 
         <h2 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#111827', textAlign: 'center', marginBottom: '8px' }}>
-          Bienvenido de nuevo
+          Crear una cuenta
         </h2>
         <p style={{ textAlign: 'center', color: '#6B7280', marginBottom: '24px' }}>
-          Ingresa tus credenciales para acceder.
+          Únete a Bloop y empieza a salvar comida.
         </p>
 
         {error && (
@@ -116,7 +111,7 @@ const LoginPage = () => {
           </div>
         )}
 
-        <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSignUp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Correo Electrónico</label>
             <input 
@@ -141,8 +136,6 @@ const LoginPage = () => {
             />
           </div>
 
-
-
           <button 
             type="submit" 
             disabled={loading}
@@ -160,7 +153,7 @@ const LoginPage = () => {
               transition: 'opacity 0.2s'
             }}
           >
-            {loading ? 'Procesando...' : 'Iniciar Sesión'}
+            {loading ? 'Procesando...' : 'Registrarse'}
           </button>
         </form>
 
@@ -171,7 +164,7 @@ const LoginPage = () => {
         </div>
 
         <button 
-          onClick={handleGoogleSignIn}
+          onClick={handleGoogleSignUp}
           disabled={loading}
           style={{
             width: '100%',
@@ -202,13 +195,13 @@ const LoginPage = () => {
         </button>
 
         <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.875rem', color: '#4B5563' }}>
-          ¿No tienes una cuenta?{' '}
+          ¿Ya tienes una cuenta?{' '}
           <button 
             type="button"
-            onClick={() => navigate('/signup')}
+            onClick={() => navigate('/login')}
             style={{ background: 'none', border: 'none', color: '#2563EB', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}
           >
-            Regístrate
+            Inicia Sesión
           </button>
         </div>
       
@@ -217,4 +210,4 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage;
+export default SignupPage;
