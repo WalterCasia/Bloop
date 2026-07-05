@@ -42,7 +42,8 @@ const RoleSelectionOnboarding = () => {
       }
     } catch (err) {
       console.error("Onboarding Error:", err);
-      setError(`Error: ${err.message || 'Hubo un problema al guardar tu selección.'}`);
+      const serverDetails = err.response?.data?.details || err.response?.data?.message;
+      setError(`Error: ${serverDetails || err.message || 'Hubo un problema al guardar tu selección.'}`);
     } finally {
       setIsLoading(false);
     }
