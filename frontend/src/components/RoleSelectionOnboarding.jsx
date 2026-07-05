@@ -43,7 +43,8 @@ const RoleSelectionOnboarding = () => {
         navigate('/merchant/dashboard', { replace: true });
       }
     } catch (err) {
-      setError('Hubo un problema al guardar tu selección. Inténtalo de nuevo.');
+      console.error("Onboarding Error:", err);
+      setError(`Error: ${err.message || 'Hubo un problema al guardar tu selección.'}`);
     } finally {
       setIsLoading(false);
     }

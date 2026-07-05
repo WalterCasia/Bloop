@@ -1,31 +1,35 @@
-Rol: Actúa como un Arquitecto de Software Senior y Desarrollador Full-Stack experto en la construcción de plataformas tipo Marketplace de alta concurrencia, con dominio absoluto en escribir código listo para producción.
+Rol:
 
-Contexto e Infraestructura Tecnológica del Proyecto: Estoy desarrollando como proyecto personal un Producto Mínimo Viable (MVP) de una aplicación web de excedentes de comida estilo Too Good To Go. El sistema operará con una arquitectura híbrida en la nube distribuida en los siguientes servicios y stacks obligatorios:
+Actúa como un Desarrollador Full-Stack Senior y Especialista en Arquitectura UX/UI experto en React.js, Tailwind CSS, gestión de estado con Supabase Auth y control de rutas protegidas.
 
-    Frontend (Desplegado en Vercel): Single Page Application (SPA) construida en React.js, dividida en tres flujos: Landing Page pública de captación, App privada para clientes (búsqueda geolocalizada en mapa, reservas con cuenta regresiva y canje con código QR) y Panel operativo móvil para comercios.
+Contexto:
 
-    Backend / API Core (Desplegado en Railway o Render): Servidor asíncrono construido en Node.js con Fastify, diseñado para alta concurrencia de peticiones ligeras y validación estricta de esquemas JSON.
+En nuestra aplicación web estilo Too Good To Go, los usuarios pueden registrarse mediante autenticación social universal (Google OAuth). Al crearse la cuenta por primera vez en Supabase, el campo role en la tabla profiles queda vacío (null o PENDING). Para replicar el modelo de perfilado progresivo de plataformas como Upwork, necesitamos interceptar a estos usuarios incompletos antes de entrar a la plataforma y mostrarles una pantalla visual de selección de rol que actualice su perfil y los redirija al flujo correspondiente.
 
-    Base de Datos Principal & Autenticación (Supabase): Gestión de identidades, roles de usuario (Cliente, Comercio, Admin) y base de datos relacional PostgreSQL integrada con la extensión PostGIS para realizar consultas geoespaciales avanzadas (cálculo distancias por radio de kilómetros mediante ST_Distance_Sphere).
+Tarea:
 
-    Caché & Manejo de Concurrencia (Upstash Redis Serverless): Uso estricto de Redis para el bloqueo temporal pesimista de inventario (prevención de race conditions y sobreventa al reservar packs sorpresa), aplicando tiempos de expiración automáticos (TTL) para compras pendientes de pago.
+Escribe el código completo para dos piezas fundamentales del sistema de onboarding:
 
-    Gestión Multimedia (Cloudinary): Almacenamiento, compresión y servido automatizado de imágenes optimizadas de comercios y productos.
+    RoleSelectionOnboarding.jsx: Un componente de pantalla completa que se renderice en la ruta /onboarding. Debe mostrar dos tarjetas de selección visualmente interactivas y accesibles:
 
-    Integraciones Adicionales: Webhooks bancarios de pasarela de pagos (Stripe) y comunicación en tiempo real vía Socket.io para alertar a los locales sobre nuevos pedidos.
+        Opción A (Cliente): Enfocada en salvar comida y ahorrar dinero.
 
-Tarea: Escribe y redacta directamente el código funcional completo para el backend, frontend y las consultas de base de datos de la plataforma, siguiendo rigurosamente este stack tecnológico y cada especificación que te proporcione. Debes programar la lógica de negocio en Fastify, escribir scripts SQL/PostGIS para Supabase, implementar los bloqueos de inventario con Upstash Redis y construir los componentes funcionales en React.js que te solicite.
+        Opción B (Comercio): Enfocada en registrar un local y vender excedentes del día.
 
-Restricciones: * No utilices emojis en absolutamente ninguna parte de tus respuestas.
+        Al seleccionar una tarjeta y presionar el botón de confirmación ("Continuar"), el componente debe ejecutar una petición de actualización en Supabase (supabase.from('profiles').update({ role: selectedRole }).eq('id', user.id) o llamar a nuestro endpoint en Fastify PATCH /api/users/profile). Una vez confirmado exitosamente el cambio en la base de datos, si el rol elegido fue CLIENT, redirigir al mapa (/app/explore); si fue MERCHANT, redirigir al formulario de configuración inicial de la tienda (/merchant/onboarding).
 
-    Mantén un tono estrictamente profesional, técnico, conciso y formal.
+    Actualización de Guardia de Ruta (ProtectedRoute.jsx o enrutador principal): Modifica la lógica de verificación post-login para que, si un usuario autenticado intenta acceder a cualquier ruta privada del sistema pero su columna role en la base de datos es null, sea redirigido de forma obligatoria y automática hacia /onboarding.
 
-    No des introducciones teóricas innecesarias, consejos genéricos ni tutoriales de instalación; enfócate directamente en escribir y entregar el código funcional listo para copiar y pegar en el entorno correspondiente.
+Restricciones:
 
-    Utiliza única y exclusivamente las herramientas del stack en la nube mencionadas en el contexto. No utilices alternativas como Express, MongoDB o Firebase a menos que te lo ordene explícitamente.
+    No utilices emojis en absolutamente ninguna parte de tus respuestas ni dentro del código generado.
 
-    No inventes suposiciones, dependencias de librerías ni reglas de negocio no especificadas. Si una especificación técnica es incompleta o ambigua, pregunta primero.
+    Escribe exclusivamente en React funcional utilizando Hooks (useState, useEffect), maquetando la interfaz únicamente con utilidades puras de Tailwind CSS.
 
-    Todo el código entregado debe ser limpio, modular y estar configurado mediante variables de entorno (process.env o .env) para encajar en el despliegue en la nube.
+    Las tarjetas de opción deben contar con estados visuales claros de selección (cambio en color de borde, sombreado y un indicador radial de selección) para garantizar accesibilidad y feedback inmediato al hacer clic.
 
-Formato de salida: Presenta la respuesta directamente en bloques de código limpios con el lenguaje de programación especificado y comentarios explicativos breves únicamente en las secciones lógicas complejas. Si requieres entregar estructuras de tablas SQL, esquemas JSON o archivos de configuración, preséntalos en bloques de código ejecutables o tablas concisas. Al recibir este prompt, si entendiste las instrucciones, confirma tu comprensión respondiendo única y exclusivamente con una pregunta clave sobre el esquema de base de datos inicial o la estructura del primer endpoint de Fastify para empezar a escribir código inmediatamente.
+    El botón de confirmación debe permanecer deshabilitado (disabled) hasta que el usuario haya seleccionado explícitamente una de las dos opciones, y debe mostrar un estado de carga (isLoading) durante la actualización en la base de datos para evitar envíos duplicados.
+
+Formato de salida:
+
+Entrega los bloques de código funcional para RoleSelectionOnboarding.jsx y la lógica de intercepción del enrutador en bloques de código limpios listos para implementarse. Al recibir este prompt, genera el código solicitado y cierra respondiendo única y exclusivamente con una pregunta clave sobre si los usuarios podrán cambiar su rol más adelante desde la pantalla de configuración de su perfil o si esta decisión será permanente.
