@@ -12,7 +12,8 @@ async function authPlugin(fastify, opts) {
     try {
       await request.jwtVerify();
     } catch (err) {
-      reply.code(401).send({ error: 'No autorizado', message: 'Token JWT inválido o ausente' });
+      request.log.error('JWT Verification Error: ' + err.message);
+      reply.code(401).send({ error: 'No autorizado', message: 'Token JWT inválido o ausente', details: err.message });
     }
   });
 }
