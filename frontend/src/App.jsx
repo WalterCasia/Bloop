@@ -8,7 +8,7 @@ import MapExplorer from './components/MapExplorer';
 import CustomerOrders from './components/orders/CustomerOrders';
 import CustomerProfile from './components/CustomerProfile';
 import PackDetail from './components/PackDetail';
-import MerchantDashboard from './components/MerchantDashboard';
+import MerchantMainDashboard from './components/MerchantMainDashboard';
 import DailyStockDashboard from './components/DailyStockDashboard';
 import MerchantProfile from './components/merchant/MerchantProfile';
 import MerchantStats from './components/merchant/MerchantStats';
@@ -174,7 +174,7 @@ const App = () => {
               path="/merchant/dashboard" 
               element={
                 <ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}>
-                  <MerchantDashboard />
+                  <MerchantMainDashboard />
                 </ProtectedRoute>
               } 
             />

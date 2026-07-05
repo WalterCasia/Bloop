@@ -123,6 +123,49 @@ export default async function merchantRoutes(fastify, options) {
   });
 
   // ----------------------------------------------------------------------
+  // Obtener pedidos vivos (PAGADO) del día para el dashboard (GET)
+  // ----------------------------------------------------------------------
+  fastify.get('/api/merchant/orders', {
+    onRequest: [fastify.authenticate]
+  }, async (request, reply) => {
+    const storeId = request.user.sub || request.user.id;
+    const client = await fastify.pg.connect();
+    
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const query = `
+        SELECT 
+          o.id,
+          o.status,
+          o.quantity,
+          o.qr_code_secret as validation_token,
+          o.created_at,
+          c.full_name as client_name
+        FROM public.orders o
+        JOIN public.profiles c ON o.client_id = c.id
+        WHERE o.store_id = $1 
+          AND o.status = 'PAGADO' 
+          AND DATE(o.created_at AT TIME ZONE 'UTC') = $2
+        ORDER BY o.created_at ASC
+      `;
+      
+      const { rows } = await client.query(query, [storeId, today]);
+
+      return reply.code(200).send({
+        status: 'success',
+        orders: rows
+      });
+
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error', message: 'No se pudieron cargar los pedidos.' });
+    } finally {
+      client.release();
+    }
+  });
+
+  // ----------------------------------------------------------------------
   // 1. OBTENER ESTADO DEL INVENTARIO DEL DÍA (GET)
   // ----------------------------------------------------------------------
   fastify.get('/api/merchant/stock', {
