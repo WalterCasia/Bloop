@@ -98,6 +98,16 @@ export default async function profileRoutes(fastify, options) {
       
       const { rows } = await client.query(query, values);
 
+      // Crear automáticamente la sucursal principal en la tabla stores si es el Onboarding (0 sucursales)
+      const storeQuery = `
+        INSERT INTO public.stores (owner_id, name, address, location, cover_url)
+        SELECT $1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), $6
+        WHERE NOT EXISTS (
+          SELECT 1 FROM public.stores WHERE owner_id = $1
+        )
+      `;
+      await client.query(storeQuery, [userId, store_name, address, lng, lat, cover_url || null]);
+
       return reply.code(200).send({
         status: 'success',
         message: 'Perfil actualizado correctamente',
