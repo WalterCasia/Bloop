@@ -5,6 +5,7 @@ import { Filter, Map as MapIcon, List, AlertCircle } from 'lucide-react';
 import apiClient from '../api/apiClient';
 import SurprisePackCard from './SurprisePackCard';
 import MapPricePill from './MapPricePills';
+import ClientTopNav from './ClientTopNav';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -134,41 +135,30 @@ const ClientExploreDashboard = () => {
   }
 
   return (
-    <div className="flex h-[calc(100vh-64px)] w-full overflow-hidden bg-white relative">
+    <div className="flex flex-col h-[calc(100vh-64px)] md:h-screen w-full overflow-hidden bg-white relative">
+      <ClientTopNav 
+        activeLocationMode="GPS"
+        selectedZone="Antigua Guatemala"
+        selectedRadius={5}
+        activeFilter="Todos"
+        pendingOrdersCount={0}
+      />
       
       {showCancelAlert && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-amber-50 border border-amber-200 text-amber-800 px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-bounce">
+        <div className="absolute top-36 left-1/2 -translate-x-1/2 z-50 bg-amber-50 border border-amber-200 text-amber-800 px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-bounce">
           <AlertCircle size={20} className="text-amber-500" />
           <span className="font-bold">Pago cancelado. El pack no fue reservado.</span>
           <button onClick={() => setShowCancelAlert(false)} className="ml-2 font-bold text-amber-900">&times;</button>
         </div>
       )}
 
-      {/* =========================================
-          PANEL IZQUIERDO: LISTA DE OFERTAS (55%)
-          ========================================= */}
-      <div 
-        className={`w-full lg:w-[55%] h-full flex-col bg-gray-50 flex ${viewMode === 'map' ? 'hidden lg:flex' : 'flex'}`}
-      >
-        {/* Barra superior de Filtros (Estática) */}
-        <div className="p-4 bg-white border-b border-gray-200 shrink-0 z-10 shadow-sm">
-          <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
-            <button className="flex items-center gap-2 border border-gray-300 rounded-full px-4 py-2 text-sm font-bold text-gray-700 hover:border-gray-900 transition-colors whitespace-nowrap">
-              <Filter size={16} /> Filtros
-            </button>
-            <button className="border border-gray-300 rounded-full px-4 py-2 text-sm font-bold text-gray-700 hover:border-gray-900 transition-colors whitespace-nowrap">
-              Menos de 2 km
-            </button>
-            <button className="border border-gray-300 rounded-full px-4 py-2 text-sm font-bold text-gray-700 hover:border-gray-900 transition-colors whitespace-nowrap">
-              Vegetariano
-            </button>
-          </div>
-          
-          <div className="mt-2 text-sm text-gray-500 font-medium">
-            Mostrando {packs.length} {packs.length === 1 ? 'local' : 'locales'} en esta área
-          </div>
-        </div>
-
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* =========================================
+            PANEL IZQUIERDO: LISTA DE OFERTAS (55%)
+            ========================================= */}
+        <div 
+          className={`w-full lg:w-[55%] h-full flex-col bg-gray-50 flex ${viewMode === 'map' ? 'hidden lg:flex' : 'flex'}`}
+        >
         {/* Contenedor con Scroll para las Tarjetas */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-24 lg:pb-6 relative">
           
