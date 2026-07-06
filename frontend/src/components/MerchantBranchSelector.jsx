@@ -77,7 +77,7 @@ const MerchantBranchSelector = () => {
               <button
                 onClick={() => {
                   setIsOpen(false);
-                  navigate('/merchant/onboarding?mode=new_branch');
+                  navigate('/merchant/branch/new');
                 }}
                 className="w-full text-left px-4 py-2 text-sm font-bold text-green-600 hover:bg-green-50 transition-colors flex items-center gap-2"
               >

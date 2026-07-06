@@ -3,6 +3,47 @@
  */
 export default async function merchantRoutes(fastify, options) {
   
+  // Endpoint para crear una nueva sucursal (Multi-Store)
+  fastify.post('/api/merchant/stores', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', minLength: 2, maxLength: 255 },
+          address: { type: 'string', minLength: 5, maxLength: 255 },
+          lat: { type: 'number', minimum: -90, maximum: 90 },
+          lng: { type: 'number', minimum: -180, maximum: 180 },
+          cover_url: { type: 'string' }
+        },
+        required: ['name', 'address', 'lat', 'lng']
+      }
+    }
+  }, async (request, reply) => {
+    const owner_id = request.user.sub || request.user.id;
+    const { name, address, lat, lng, cover_url } = request.body;
+    
+    const client = await fastify.pg.connect();
+    try {
+      const query = `
+        INSERT INTO public.stores (owner_id, name, address, location, cover_url)
+        VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), $6)
+        RETURNING id, name, address, cover_url
+      `;
+      const { rows } = await client.query(query, [owner_id, name, address, lng, lat, cover_url || null]);
+      
+      return reply.code(201).send({
+        status: 'success',
+        store: rows[0]
+      });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error', message: 'No se pudo crear la sucursal.' });
+    } finally {
+      client.release();
+    }
+  });
+
   // Endpoint para validar el código QR y entregar el pedido
   fastify.post('/api/merchant/orders/validate', {
     // Requiere autenticación (debe ser el token del comercio)
