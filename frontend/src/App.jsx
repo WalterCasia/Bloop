@@ -25,6 +25,8 @@ import ClientOnboardingWizard from './components/ClientOnboardingWizard';
 import ClientPreferencesView from './components/ClientPreferencesView';
 import MerchantOnboardingWizard from './components/MerchantOnboardingWizard';
 import SurprisePackTemplateEditor from './components/SurprisePackTemplateEditor';
+import MerchantDashboardLayout from './components/merchant/MerchantDashboardLayout';
+import UnderConstructionView from './components/merchant/UnderConstructionView';
 
 // Placeholder de vistas auxiliares para mantener el enrutador funcional
 const Unauthorized = () => <div style={{ textAlign: 'center', padding: '40px', color: 'red' }}><h1>Acceso Denegado (403)</h1><p>Tu rol no permite acceder a esta área.</p></div>;
@@ -174,70 +176,25 @@ const App = () => {
               } 
             />
 
-            <Route 
-              path="/merchant/dashboard" 
-              element={
-                <ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}>
-                  <MerchantMainDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/merchant/daily-stock" 
-              element={
-                <ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}>
-                  <DailyStockDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/merchant/create-pack" 
-              element={
-                <ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}>
-                  <SurprisePackTemplateEditor />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/merchant/profile" 
-              element={
-                <ProtectedRoute requiredRole="COMERCIO">
-                  <MerchantProfile />
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path="/merchant/employees" 
-              element={
-                <ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}>
-                  <NavigationLayout role="COMERCIO">
-                    <MerchantEmployeesView />
-                  </NavigationLayout>
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path="/merchant/stats" 
-              element={
-                <ProtectedRoute requiredRole="MERCHANT" requireOnboarding={true}>
-                  <MerchantStats />
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path="/merchant/profile" 
-              element={
-                <ProtectedRoute requiredRole="MERCHANT" requireOnboarding={true}>
-                  <MerchantProfile />
-                </ProtectedRoute>
-              } 
-            />
+            {/* =======================
+                Layout Exclusivo COMERCIO (Uber Eats Style)
+               ======================= */}
+            <Route element={<ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}><MerchantDashboardLayout /></ProtectedRoute>}>
+              <Route path="/merchant/dashboard" element={<MerchantMainDashboard />} />
+              <Route path="/merchant/daily-stock" element={<DailyStockDashboard />} />
+              <Route path="/merchant/create-pack" element={<SurprisePackTemplateEditor />} />
+              <Route path="/merchant/profile" element={<MerchantProfile />} />
+              <Route path="/merchant/employees" element={<MerchantEmployeesView />} />
+              <Route path="/merchant/stats" element={<MerchantStats />} />
+              
+              {/* Rutas en Construcción (Fases Posteriores) */}
+              <Route path="/merchant/orders" element={<UnderConstructionView title="Gestión de Pedidos" />} />
+              <Route path="/merchant/performance" element={<UnderConstructionView title="Rendimiento e Impacto" />} />
+              <Route path="/merchant/reviews" element={<UnderConstructionView title="Reseñas de Clientes" />} />
+              <Route path="/merchant/reports" element={<UnderConstructionView title="Reportes Analíticos" />} />
+              <Route path="/merchant/payments" element={<UnderConstructionView title="Historial de Pagos" />} />
+              <Route path="/merchant/settings" element={<UnderConstructionView title="Configuración de Sucursal" />} />
+            </Route>
           </Route>
 
           {/* Ruta Catch-all (Redirección 404 por defecto a Inicio) */}

@@ -34,19 +34,23 @@ const MerchantBranchSelector = () => {
     <div className="relative">
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
+        className="flex items-center justify-between w-full p-2 bg-transparent hover:bg-gray-100 rounded-lg transition-colors text-left"
       >
-        <Store size={18} className="text-gray-700" />
-        <span className="text-sm font-bold text-gray-900 truncate max-w-[120px]">
-          {activeStore?.name}
-        </span>
-        <ChevronDown size={16} className={`text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <div className="flex flex-col overflow-hidden">
+          <span className="text-sm font-bold text-gray-900 truncate">
+            {activeStore?.name}
+          </span>
+          <span className="text-xs font-medium text-gray-500">
+            Negocio
+          </span>
+        </div>
+        <ChevronDown size={16} className={`text-gray-500 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
-          <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden py-2">
+          <div className="absolute top-full left-0 mt-2 w-full min-w-[220px] bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden py-2">
             <div className="px-3 pb-2 mb-2 border-b border-gray-50">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Tus Sucursales</p>
             </div>
