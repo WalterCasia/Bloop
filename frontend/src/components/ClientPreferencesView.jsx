@@ -53,18 +53,19 @@ const ClientPreferencesView = () => {
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('default_zone, search_radius, dietary_preferences, notification_preferences')
+        .select('default_zone, search_radius, preferences')
         .eq('id', user.id)
         .single();
 
       if (error) throw error;
 
       if (data) {
+        const prefs = data.preferences || {};
         setFormData({
           defaultZone: data.default_zone || 'Antigua Guatemala',
           searchRadius: data.search_radius || 5,
-          dietaryPreferences: data.dietary_preferences || [],
-          notifications: data.notification_preferences || {
+          dietaryPreferences: prefs.dietary || [],
+          notifications: prefs.notifications || {
             stockAlerts: true,
             pickupReminders: true
           }
@@ -109,13 +110,17 @@ const ClientPreferencesView = () => {
       setSaving(true);
       setSaveSuccess(false);
 
+      const jsonbPreferences = {
+        dietary: formData.dietaryPreferences,
+        notifications: formData.notifications
+      };
+
       const { error } = await supabase
         .from('profiles')
         .update({
           default_zone: formData.defaultZone,
           search_radius: parseInt(formData.searchRadius),
-          dietary_preferences: formData.dietaryPreferences,
-          notification_preferences: formData.notifications,
+          preferences: jsonbPreferences,
           updated_at: new Date()
         })
         .eq('id', user.id);
