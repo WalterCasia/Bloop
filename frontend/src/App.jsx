@@ -18,6 +18,7 @@ import MerchantNewBranchView from './components/merchant/MerchantNewBranchView';
 import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
 import SignupPage from './components/SignupPage';
+import EmployeeJoinView from './components/EmployeeJoinView';
 import NavigationLayout from './components/NavigationLayout';
 import RoleSelectionOnboarding from './components/RoleSelectionOnboarding';
 import ClientOnboardingWizard from './components/ClientOnboardingWizard';
@@ -86,6 +87,7 @@ const App = () => {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/join" element={<EmployeeJoinView />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route 
             path="/onboarding" 

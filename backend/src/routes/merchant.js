@@ -44,6 +44,121 @@ export default async function merchantRoutes(fastify, options) {
     }
   });
 
+  // Endpoint para generar un código de invitación (Multi-Store)
+  fastify.post('/api/merchant/invitations', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          store_id: { type: 'string', format: 'uuid' }
+        },
+        required: ['store_id']
+      }
+    }
+  }, async (request, reply) => {
+    const owner_id = request.user.sub || request.user.id;
+    const { store_id } = request.body;
+    
+    const client = await fastify.pg.connect();
+    try {
+      // Validar que la tienda pertenezca al dueño
+      const checkStore = await client.query(`SELECT id FROM public.stores WHERE id = $1 AND owner_id = $2`, [store_id, owner_id]);
+      if (checkStore.rows.length === 0) {
+        return reply.code(403).send({ status: 'error', message: 'No tienes permisos para esta sucursal.' });
+      }
+
+      // Generar código corto (ej: B-XXXX)
+      const code = `B-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+      const query = `
+        INSERT INTO public.store_invitations (store_id, created_by, code, expires_at)
+        VALUES ($1, $2, $3, NOW() + INTERVAL '7 days')
+        RETURNING code
+      `;
+      const { rows } = await client.query(query, [store_id, owner_id, code]);
+      
+      return reply.code(201).send({
+        status: 'success',
+        code: rows[0].code
+      });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error', message: 'No se pudo generar el código.' });
+    } finally {
+      client.release();
+    }
+  });
+
+  // Endpoint para que un empleado canjee un código de invitación
+  fastify.post('/api/merchant/invitations/redeem', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          code: { type: 'string' }
+        },
+        required: ['code']
+      }
+    }
+  }, async (request, reply) => {
+    const user_id = request.user.sub || request.user.id;
+    const { code } = request.body;
+    
+    const client = await fastify.pg.connect();
+    try {
+      // Iniciar transacción
+      await client.query('BEGIN');
+
+      // 1. Buscar el código activo
+      const inviteQuery = `
+        SELECT id, store_id FROM public.store_invitations 
+        WHERE code = $1 AND is_active = true AND (expires_at IS NULL OR expires_at > NOW())
+        FOR UPDATE
+      `;
+      const inviteRes = await client.query(inviteQuery, [code]);
+      
+      if (inviteRes.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return reply.code(404).send({ status: 'error', message: 'El código es inválido o ha expirado.' });
+      }
+
+      const invite = inviteRes.rows[0];
+
+      // 2. Actualizar el perfil del usuario a EMPLOYEE y asignarlo a la tienda
+      const updateProfileQuery = `
+        INSERT INTO public.profiles (id, role, merchant_role, assigned_store_id, full_name)
+        VALUES ($1, 'COMERCIO', 'EMPLOYEE', $2, 'Empleado Bloop')
+        ON CONFLICT (id) DO UPDATE SET
+          role = 'COMERCIO',
+          merchant_role = 'EMPLOYEE',
+          assigned_store_id = EXCLUDED.assigned_store_id,
+          updated_at = NOW()
+      `;
+      await client.query(updateProfileQuery, [user_id, invite.store_id]);
+
+      // También actualizamos el app_metadata en auth.users si es necesario para los tokens JWT (solo si se usa db en auth)
+      // Omitido temporalmente, el login relies on perfiles.
+
+      // 3. Marcar el código como inactivo
+      await client.query(`UPDATE public.store_invitations SET is_active = false WHERE id = $1`, [invite.id]);
+
+      await client.query('COMMIT');
+
+      return reply.code(200).send({
+        status: 'success',
+        message: 'Te has unido exitosamente a la sucursal.'
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error', message: 'No se pudo canjear el código.' });
+    } finally {
+      client.release();
+    }
+  });
+
   // Endpoint para validar el código QR y entregar el pedido
   fastify.post('/api/merchant/orders/validate', {
     // Requiere autenticación (debe ser el token del comercio)

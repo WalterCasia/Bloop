@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Copy, CheckCircle2, UserPlus, Store } from 'lucide-react';
+import apiClient from '../../api/apiClient';
 
 const EmployeeInviteModal = ({ onClose, stores, activeStore }) => {
   const [selectedStoreId, setSelectedStoreId] = useState(activeStore?.id || '');
@@ -7,15 +8,19 @@ const EmployeeInviteModal = ({ onClose, stores, activeStore }) => {
   const [copied, setCopied] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!selectedStoreId) return;
     setIsGenerating(true);
-    // Simular llamada al backend para generar código de invitación
-    setTimeout(() => {
-      const code = `B-${Math.floor(1000 + Math.random() * 9000)}`;
-      setGeneratedCode(code);
+    
+    try {
+      const response = await apiClient.post('/api/merchant/invitations', { store_id: selectedStoreId });
+      setGeneratedCode(response.data.code);
+    } catch (error) {
+      console.error('Error generando código:', error);
+      alert('Hubo un error al generar el código de invitación.');
+    } finally {
       setIsGenerating(false);
-    }, 800);
+    }
   };
 
   const handleCopy = () => {
