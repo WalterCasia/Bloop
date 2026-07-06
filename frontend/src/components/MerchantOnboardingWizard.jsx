@@ -166,6 +166,7 @@ const MerchantOnboardingWizard = () => {
         category: category,
         address: address,
         bank_account: bankAccount,
+        legal_id: legalName,
         lng: coords.lng,
         lat: coords.lat,
         manager_name: managerName,

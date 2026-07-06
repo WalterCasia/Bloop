@@ -8,15 +8,21 @@ export const updateProfileSchema = {
   schema: {
     body: {
       type: 'object',
-      required: ['store_name', 'address', 'category', 'legal_id', 'bank_account'],
+      required: ['store_name', 'address', 'category'],
       properties: {
         store_name: { type: 'string', minLength: 3 },
-        address: { type: 'string', minLength: 10 },
-        category: { type: 'string', minLength: 3 },
-        legal_id: { type: 'string', minLength: 5 },
-        bank_account: { type: 'string', minLength: 10 }
+        address: { type: 'string', minLength: 5 },
+        category: { type: 'string' },
+        legal_id: { type: 'string' },
+        bank_account: { type: 'string' },
+        lng: { type: 'number' },
+        lat: { type: 'number' },
+        manager_name: { type: 'string' },
+        phone: { type: 'string' },
+        pickup_start: { type: 'string' },
+        pickup_end: { type: 'string' }
       },
-      additionalProperties: false
+      additionalProperties: true
     }
   }
 };
@@ -26,76 +32,46 @@ export const updateProfileSchema = {
  * Actualiza la información del comercio y geocodifica la dirección usando Mapbox.
  */
 export const updateMerchantProfile = async (request, reply) => {
-  const { store_name, address, category, legal_id, bank_account } = request.body;
+  const { store_name, address, category, lng, lat, phone } = request.body;
   
   // En un sistema real, este ID provendría del token JWT decodificado en request.user
   const merchantId = request.user?.sub || '22222222-2222-2222-2222-222222222222'; 
 
   try {
-    // 1. Obtener Token de Mapbox (Validar en el servidor por seguridad)
-    const mapboxToken = process.env.MAPBOX_SECRET_TOKEN || process.env.VITE_MAPBOX_TOKEN;
-    if (!mapboxToken) {
-      return reply.code(500).send({ 
-        status: 'error', 
-        message: 'Error de configuración: Falta el token de Mapbox en el servidor.' 
+    if (lng === undefined || lat === undefined) {
+      return reply.code(400).send({
+        status: 'error',
+        message: 'Las coordenadas (lng, lat) son requeridas para la ubicación.'
       });
     }
 
-    // 2. Ejecutar Geocodificación (Texto plano -> Coordenadas)
-    const geocodeUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json`;
-    const mapboxResponse = await axios.get(geocodeUrl, {
-      params: {
-        access_token: mapboxToken,
-        limit: 1,
-        types: 'address,poi' // Priorizar direcciones precisas y puntos de interés
-      }
-    });
+    // Insertar la primera sucursal principal en la tabla stores
+    const queryStores = `
+      INSERT INTO public.stores (owner_id, name, address, location, cover_url)
+      VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), null)
+      RETURNING id, name, address;
+    `;
+    
+    const valuesStores = [merchantId, store_name, address, lng, lat];
+    const { rows: storeRows } = await request.server.pg.query(queryStores, valuesStores);
 
-    const features = mapboxResponse.data.features;
-    if (!features || features.length === 0) {
-      return reply.code(404).send({ 
-        status: 'error', 
-        message: 'No se encontraron coordenadas exactas para la dirección proporcionada. Intenta ser más específico.' 
-      });
-    }
-
-    // Mapbox siempre devuelve el formato [longitud, latitud]
-    const [lng, lat] = features[0].center;
-
-    // 3. Persistencia en Supabase (PostGIS)
-    // Utilizamos el cliente nativo fastify.pg para poder ejecutar ST_MakePoint directamente
-    const query = `
+    // Actualizar también profiles por retrocompatibilidad con vistas existentes
+    const queryProfiles = `
       UPDATE public.profiles 
       SET 
         store_name = $1, 
         address = $2, 
         category = $3,
-        -- Almacenar metadatos extra si es necesario (asumiendo columna JSON o campos nativos)
-        -- legal_id = $4,
-        -- bank_account = $5,
         location = ST_SetSRID(ST_MakePoint($4, $5), 4326)
       WHERE id = $6
-      RETURNING id, store_name, address;
     `;
-    
-    // NOTA: Ajustar los índices del query dependiendo de si las columnas legal_id y bank_account 
-    // existen estructuralmente en la tabla. Por ahora actualizamos las columnas base confirmadas.
-    const values = [store_name, address, category, lng, lat, merchantId];
-    
-    const { rows } = await request.server.pg.query(query, values);
-
-    if (rows.length === 0) {
-      return reply.code(404).send({ 
-        status: 'error', 
-        message: 'Perfil de comercio no encontrado o no tienes permisos para editarlo.' 
-      });
-    }
+    await request.server.pg.query(queryProfiles, [store_name, address, category, lng, lat, merchantId]);
 
     return reply.send({
       status: 'success',
       message: 'Perfil comercial geolocalizado y actualizado exitosamente.',
       data: {
-        ...rows[0],
+        ...storeRows[0],
         coordinates: { lng, lat }
       }
     });
