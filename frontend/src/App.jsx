@@ -13,6 +13,7 @@ import MerchantMainDashboard from './components/MerchantMainDashboard';
 import DailyStockDashboard from './components/DailyStockDashboard';
 import MerchantProfile from './components/merchant/MerchantProfile';
 import MerchantStats from './components/merchant/MerchantStats';
+import MerchantEmployeesView from './components/merchant/MerchantEmployeesView';
 import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
 import SignupPage from './components/SignupPage';
@@ -198,10 +199,30 @@ const App = () => {
             />
 
             <Route 
-              path="/merchant/stats" 
+              path="/merchant/employees" 
               element={
                 <ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}>
+                  <NavigationLayout role="COMERCIO">
+                    <MerchantEmployeesView />
+                  </NavigationLayout>
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/merchant/stats" 
+              element={
+                <ProtectedRoute requiredRole="MERCHANT" requireOnboarding={true}>
                   <MerchantStats />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/merchant/profile" 
+              element={
+                <ProtectedRoute requiredRole="MERCHANT" requireOnboarding={true}>
+                  <MerchantProfile />
                 </ProtectedRoute>
               } 
             />
