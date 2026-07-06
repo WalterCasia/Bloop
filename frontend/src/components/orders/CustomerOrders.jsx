@@ -68,8 +68,15 @@ const CustomerOrders = () => {
 
       {/* Header Fijo */}
       <div className="bg-white px-4 pt-6 pb-2 border-b sticky top-0 z-10 shadow-sm">
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Mis Pedidos</h1>
-        
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/explore')}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Mis Pedidos</h1>
+        </div>
         {/* Tabs de Navegación */}
         <div className="flex justify-between items-center mt-4">
           {['ACTIVE', 'PAST', 'CANCELLED'].map((tab) => (

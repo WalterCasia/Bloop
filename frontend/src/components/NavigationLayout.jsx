@@ -105,9 +105,10 @@ const NavigationLayout = () => {
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-50 relative">
       
       {/* =========================================
-          Sidebar para Escritorio (md+)
+          Sidebar para Escritorio (md+) (Solo para COMERCIO)
           ========================================= */}
-      <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-white border-r border-gray-200 shadow-sm z-[9999]">
+      {role === 'COMERCIO' && (
+        <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-white border-r border-gray-200 shadow-sm z-[9999]">
         <div className="p-6 flex items-center justify-center border-b border-gray-100">
           <h1 className="text-2xl font-black text-green-600 tracking-tight">Bloop.</h1>
         </div>
@@ -129,11 +130,12 @@ const NavigationLayout = () => {
           </button>
         </div>
       </aside>
+      )}
 
       {/* =========================================
           Contenido Principal
           ========================================= */}
-      <main className="flex-1 md:ml-64 pb-16 md:pb-0 w-full relative h-screen overflow-y-auto">
+      <main className={`flex-1 ${role === 'COMERCIO' ? 'md:ml-64' : ''} pb-16 md:pb-0 w-full relative h-screen overflow-y-auto`}>
         <Outlet />
       </main>
 
