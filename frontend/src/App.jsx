@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ReservationProvider } from './contexts/ReservationContext';
+import { StoreProvider } from './contexts/StoreContext';
 
 // Importación de Componentes Principales
 import ClientExploreDashboard from './components/ClientExploreDashboard';
@@ -73,9 +74,10 @@ const App = () => {
   return (
     // Envolvemos toda la app en el Contexto de Autenticación y Reservas
     <AuthProvider>
-      <ReservationProvider>
-        <Router>
-          <Routes>
+      <StoreProvider>
+        <ReservationProvider>
+          <Router>
+            <Routes>
           {/* =======================
               Flujos Públicos
              ======================= */}
@@ -210,6 +212,7 @@ const App = () => {
         </Routes>
       </Router>
       </ReservationProvider>
+      </StoreProvider>
     </AuthProvider>
   );
 };

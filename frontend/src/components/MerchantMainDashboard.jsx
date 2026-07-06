@@ -2,10 +2,13 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import { useAuth } from '../contexts/AuthContext';
+import { useStoreContext } from '../contexts/StoreContext';
+import MerchantBranchSelector from './MerchantBranchSelector';
 import QRScannerModal from './QRScannerModal';
 
 const MerchantMainDashboard = () => {
   const { user } = useAuth();
+  const { activeStore, isLoadingStores } = useStoreContext();
   
   const [packData, setPackData] = useState(null);
   const [orders, setOrders] = useState([]);
@@ -20,15 +23,17 @@ const MerchantMainDashboard = () => {
 
   // Cargar datos de stock y pedidos
   const fetchData = useCallback(async (isInitial = false) => {
+    if (!activeStore) return;
+
     try {
       if (isInitial) setIsLoading(true);
       
       const [stockRes, ordersRes] = await Promise.all([
-        apiClient.get('/api/merchant/stock').catch(err => {
+        apiClient.get(`/api/merchant/stock?storeId=${activeStore.id}`).catch(err => {
           if (err.response?.status === 404) return { data: { pack: null } };
           throw err;
         }),
-        apiClient.get('/api/merchant/orders').catch(err => {
+        apiClient.get(`/api/merchant/orders?storeId=${activeStore.id}`).catch(err => {
           console.error("Error fetching orders:", err);
           return { data: { orders: [] } };
         })
@@ -57,7 +62,7 @@ const MerchantMainDashboard = () => {
   }, []);
 
   useEffect(() => {
-    if (user) {
+    if (user && activeStore) {
       fetchData(true);
       
       // Polling cada 10 segundos para actualizar pedidos en vivo
@@ -69,7 +74,7 @@ const MerchantMainDashboard = () => {
     return () => {
       if (pollingInterval.current) clearInterval(pollingInterval.current);
     };
-  }, [user, fetchData]);
+  }, [user, activeStore, fetchData]);
 
   // Sincronización asíncrona de stock (Optimistic UI)
   const syncStockWithBackend = async (newStock, newStatus) => {
@@ -78,7 +83,8 @@ const MerchantMainDashboard = () => {
       await apiClient.patch('/api/merchant/stock', {
         packId: packData.id,
         availableStock: newStock,
-        status: newStatus
+        status: newStatus,
+        storeId: activeStore.id
       });
       lastValidStock.current = newStock;
     } catch (err) {
@@ -133,7 +139,10 @@ const MerchantMainDashboard = () => {
       const confirmAction = window.confirm('¿Confirmar entrega manual de este pedido?');
       if (!confirmAction) return;
       
-      const response = await apiClient.post('/api/merchant/orders/validate', { qr_code: validationToken });
+      const response = await apiClient.post('/api/merchant/orders/validate', { 
+        qr_code: validationToken,
+        storeId: activeStore.id
+      });
       if (response.data.status === 'success') {
         alert('Pedido marcado como entregado.');
         fetchData(false); // Refrescar vista
@@ -143,19 +152,27 @@ const MerchantMainDashboard = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isLoadingStores) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center">
         <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
+        {isLoadingStores && <p className="mt-4 text-gray-500 font-medium">Cargando sucursales...</p>}
       </div>
     );
   }
 
   if (!packData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex justify-center items-center p-4">
-         <div className="bg-white p-8 rounded-2xl shadow-sm text-center max-w-sm w-full border border-gray-100">
-           <p className="text-gray-800 font-bold mb-2">Sin Packs Activos</p>
+      <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+        <div className="max-w-md mx-auto w-full p-4 mt-2">
+          <header className="mb-6 flex justify-between items-center">
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight">Panel Operativo</h1>
+            <MerchantBranchSelector />
+          </header>
+        </div>
+        <div className="flex-1 flex justify-center items-center p-4">
+           <div className="bg-white p-8 rounded-2xl shadow-sm text-center max-w-sm w-full border border-gray-100">
+             <p className="text-gray-800 font-bold mb-2">Sin Packs Activos</p>
            <p className="text-sm text-gray-500 mb-6">No tienes ningún Pack Sorpresa para el día de hoy.</p>
            <Link 
              to="/merchant/create-pack"
@@ -163,7 +180,8 @@ const MerchantMainDashboard = () => {
            >
              Crear mi primer Pack
            </Link>
-         </div>
+           </div>
+        </div>
       </div>
     );
   }
@@ -195,9 +213,10 @@ const MerchantMainDashboard = () => {
 
       <div className="max-w-md mx-auto mt-2">
         {/* Encabezado de Estado Diario */}
-        <header className="mb-6 flex justify-between items-end">
-          <div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight">Panel Operativo</h1>
+        <header className="mb-6 flex justify-between items-center">
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Panel Operativo</h1>
+          <MerchantBranchSelector />
+        </header>
             <p className="text-gray-500 font-medium text-sm mt-1 flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${packData.status === 'SOLD_OUT' ? 'bg-red-500' : 'bg-green-500'}`}></span>
               {packData.status === 'SOLD_OUT' ? 'Agotado hoy' : 'Activo y visible'}
