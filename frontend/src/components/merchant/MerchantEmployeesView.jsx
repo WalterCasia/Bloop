@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStoreContext } from '../../contexts/StoreContext';
 import { Users, UserPlus, MoreVertical, Building2, UserX } from 'lucide-react';
-import MerchantBranchSelector from './MerchantBranchSelector';
+import MerchantBranchSelector from '../MerchantBranchSelector';
 import EmployeeInviteModal from './EmployeeInviteModal';
 import { supabase } from '../../lib/supabaseClient';
 
