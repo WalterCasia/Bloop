@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import fastifyJwt from '@fastify/jwt';
 import { v2 as cloudinary } from 'cloudinary';
 import { config, validateEnv } from './config/env.js';
 
@@ -28,6 +29,10 @@ cloudinary.config({
 async function registerPlugins() {
   await fastify.register(cors, {
     origin: '*', // Nota: Restringir a dominios específicos de Vercel en producción
+  });
+  
+  await fastify.register(fastifyJwt, {
+    secret: config.jwtSecret
   });
 
   // Plugins personalizados
