@@ -23,6 +23,12 @@ const ClientExploreDashboard = () => {
   // Estado de Vista Móvil (Lista vs Mapa)
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
   
+  // Estados para ClientTopNav
+  const [activeLocationMode, setActiveLocationMode] = useState('GPS');
+  const [selectedZone, setSelectedZone] = useState('Antigua Guatemala');
+  const [selectedRadius, setSelectedRadius] = useState(5);
+  const [activeFilter, setActiveFilter] = useState('Todos');
+  
   // Estado del Mapa
   const [viewState, setViewState] = useState({
     latitude: DEFAULT_LAT,
@@ -73,6 +79,66 @@ const ClientExploreDashboard = () => {
       setTimeout(() => setShowCancelAlert(false), 5000);
     }
   }, []);
+
+  // Coordenadas de las zonas predefinidas
+  const ZONES = {
+    'Antigua Guatemala': { lat: 14.5586, lng: -90.7332 },
+    'Zona 10 - Ciudad de Guatemala': { lat: 14.6038, lng: -90.5132 },
+    'Zona 4 - Cuatro Grados Norte': { lat: 14.6231, lng: -90.5161 },
+    'Zona 15': { lat: 14.5888, lng: -90.4851 },
+    'Cayalá': { lat: 14.6133, lng: -90.4883 }
+  };
+
+  const handleZoneChange = (zone) => {
+    setActiveLocationMode('ZONE');
+    setSelectedZone(zone);
+    const coords = ZONES[zone];
+    if (coords) {
+      setViewState(prev => ({
+        ...prev,
+        latitude: coords.lat,
+        longitude: coords.lng,
+        zoom: 14
+      }));
+      fetchPacks(coords.lat, coords.lng, selectedRadius);
+    }
+  };
+
+  const handleLocationChange = () => {
+    setActiveLocationMode('GPS');
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        setViewState(prev => ({
+          ...prev,
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          zoom: 14
+        }));
+        fetchPacks(pos.coords.latitude, pos.coords.longitude, selectedRadius);
+      });
+    }
+  };
+
+  const handleRadiusChange = (radius) => {
+    setSelectedRadius(radius);
+    fetchPacks(viewState.latitude, viewState.longitude, radius);
+  };
+
+  // Filtrar localmente los packs en base a activeFilter
+  const filteredPacks = packs.filter(pack => {
+    if (activeFilter === 'Todos') return true;
+    
+    // Filtros de prueba basados en el título o descripción, ya que el store_type no viene del API por defecto
+    const title = pack.title.toLowerCase();
+    if (activeFilter === 'Panadería y Pastelería') return title.includes('pan') || title.includes('pastel') || title.includes('dulce');
+    if (activeFilter === 'Restaurantes') return title.includes('menú') || title.includes('almuerzo') || title.includes('cena');
+    if (activeFilter === 'Supermercados') return title.includes('despensa') || title.includes('super') || title.includes('abarrote');
+    if (activeFilter === 'Vegano/Vegetariano') return title.includes('vegan') || title.includes('vegetariano');
+    
+    // Para Recogida Hoy / Mañana se requeriría procesar pack.pickup_start_time
+    // Como simplificación de UI, devolvemos todo si no coincide
+    return true; 
+  });
 
   // Fetch a la API con Debounce
   const fetchPacks = async (lat, lng, radius = 5) => {
@@ -137,11 +203,16 @@ const ClientExploreDashboard = () => {
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] md:h-screen w-full overflow-hidden bg-white relative">
       <ClientTopNav 
-        activeLocationMode="GPS"
-        selectedZone="Antigua Guatemala"
-        selectedRadius={5}
-        activeFilter="Todos"
+        activeLocationMode={activeLocationMode}
+        selectedZone={selectedZone}
+        selectedRadius={selectedRadius}
+        activeFilter={activeFilter}
         pendingOrdersCount={0}
+        onLocationChange={handleLocationChange}
+        onZoneChange={handleZoneChange}
+        onRadiusChange={handleRadiusChange}
+        onFilterChange={setActiveFilter}
+        onSearch={() => fetchPacks(viewState.latitude, viewState.longitude, selectedRadius)}
       />
       
       {showCancelAlert && (
@@ -162,26 +233,29 @@ const ClientExploreDashboard = () => {
         {/* Contenedor con Scroll para las Tarjetas */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-24 lg:pb-6 relative">
           
-          {loading && packs.length === 0 ? (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="animate-pulse bg-white border border-gray-200 rounded-2xl h-[320px]"></div>
-              ))}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center h-48">
+              <div className="w-10 h-10 border-4 border-green-200 border-t-green-600 rounded-full animate-spin"></div>
+              <p className="mt-4 text-sm font-semibold text-gray-500 animate-pulse">Buscando comida cerca de ti...</p>
             </div>
           ) : error ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <AlertCircle size={48} className="text-red-400 mb-4" />
-              <p className="text-gray-900 font-bold">{error}</p>
+            <div className="bg-red-50 p-6 rounded-2xl border border-red-100 text-center">
+              <p className="text-red-700 font-medium">{error}</p>
+              <button onClick={() => fetchPacks(viewState.latitude, viewState.longitude, selectedRadius)} className="mt-4 bg-white px-4 py-2 rounded-full text-sm font-bold text-red-600 border border-red-200 shadow-sm">
+                Reintentar
+              </button>
             </div>
-          ) : packs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
-              <MapIcon size={48} className="text-gray-300 mb-4" />
-              <p className="font-bold text-gray-900 text-lg">No hay ofertas aquí</p>
-              <p className="mt-1">Intenta mover el mapa o reducir el zoom.</p>
+          ) : filteredPacks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center pt-10">
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <AlertCircle className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">No hay packs disponibles</h3>
+              <p className="text-gray-500 text-sm max-w-[250px]">No encontramos opciones con los filtros actuales en esta zona.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              {packs.map((pack) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 lg:gap-6">
+              {filteredPacks.map(pack => (
                 <div 
                   key={pack.pack_id} 
                   ref={el => cardRefs.current[pack.pack_id] = el}
@@ -212,14 +286,14 @@ const ClientExploreDashboard = () => {
           mapStyle="mapbox://styles/mapbox/streets-v12"
           mapboxAccessToken={MAPBOX_TOKEN}
         >
-          {packs.map((pack) => (
-            <MapPricePill 
-              key={pack.pack_id}
-              pack={pack}
-              isHovered={hoveredStoreId === pack.store_id}
-              onClick={() => handleMarkerClick(pack)}
-            />
-          ))}
+                  {filteredPacks.map(pack => (
+                <MapPricePill 
+                  key={pack.pack_id} 
+                  pack={pack} 
+                  isHovered={hoveredStoreId === pack.store_id}
+                  onClick={handleMarkerClick}
+                />
+              ))}
 
           {/* Controles Nativos de Mapbox */}
           <NavigationControl position="bottom-right" />

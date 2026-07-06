@@ -7,22 +7,16 @@ const MapPricePill = ({ pack, isHovered, onClick }) => {
 
   const stock = pack.available_quantity;
   const isSoldOut = stock === 0;
-  const isLowStock = stock > 0 && stock <= 2;
 
   // Clases dinámicas basadas en stock y estado (Hover)
-  let pillClasses = "flex items-center justify-center px-3 py-1.5 rounded-full font-black text-sm transition-all duration-300 shadow-md cursor-pointer border-2 ";
-  
+  let pillClasses = "relative flex flex-col items-center cursor-pointer transition-transform duration-300 ";
+  pillClasses += isHovered ? "scale-110 z-50" : "z-10";
+
+  let bgClass = "";
   if (isSoldOut) {
-    pillClasses += "bg-gray-200 text-gray-500 border-gray-300";
-  } else if (isLowStock) {
-    pillClasses += isHovered 
-      ? "bg-amber-600 text-white border-amber-700 shadow-xl scale-125 z-50" 
-      : "bg-amber-500 text-white border-amber-600 hover:scale-110 z-10";
+    bgClass = "bg-gray-300 text-gray-500";
   } else {
-    // Normal (stock > 2)
-    pillClasses += isHovered 
-      ? "bg-gray-900 text-white border-black shadow-xl scale-125 z-50" 
-      : "bg-white text-gray-900 border-gray-200 hover:scale-110 z-10";
+    bgClass = isHovered ? "bg-gray-900 text-white" : "bg-white text-gray-900";
   }
 
   // Prevenir propagación si el usuario hace clic en el mapa vs en el pin
@@ -35,12 +29,21 @@ const MapPricePill = ({ pack, isHovered, onClick }) => {
     <Marker 
       longitude={pack.location_lng} 
       latitude={pack.location_lat} 
-      anchor="center"
+      anchor="bottom"
       onClick={handleMarkerClick}
       style={{ zIndex: isHovered ? 50 : (isSoldOut ? 1 : 10) }}
     >
       <div className={pillClasses}>
-        {isSoldOut ? 'Agotado' : `Q${Number(pack.discounted_price).toFixed(0)}`}
+        {/* Cuerpo de la píldora (Precio) */}
+        <div className={`px-3 py-1 rounded-full font-bold text-sm shadow-[0_2px_4px_rgba(0,0,0,0.25)] transition-colors duration-300 ${bgClass}`}>
+          {isSoldOut ? 'Agotado' : `Q${Number(pack.discounted_price).toFixed(0)}`}
+        </div>
+        
+        {/* Triángulo inferior (colita) */}
+        <div 
+          className={`w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[6px] transition-colors duration-300 ${isSoldOut ? 'border-t-gray-300' : isHovered ? 'border-t-gray-900' : 'border-t-white'}`}
+          style={{ filter: 'drop-shadow(0 2px 1px rgba(0,0,0,0.15))', marginTop: '-1px' }}
+        ></div>
       </div>
     </Marker>
   );
