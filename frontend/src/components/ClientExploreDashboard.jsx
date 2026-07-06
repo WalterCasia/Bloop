@@ -234,10 +234,11 @@ const ClientExploreDashboard = () => {
           </div>
         )}
       </div>
+    </div>
 
-      {/* =========================================
-          FAB FLOTANTE PARA MÓVILES (Toggle)
-          ========================================= */}
+    {/* =========================================
+        FAB FLOTANTE PARA MÓVILES (Toggle)
+        ========================================= */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 lg:hidden z-50">
         <button 
           onClick={() => setViewMode(prev => prev === 'list' ? 'map' : 'list')}
