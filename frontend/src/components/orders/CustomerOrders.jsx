@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import apiClient from '../../api/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
 import OrderQRModal from './OrderQRModal';
@@ -13,6 +13,9 @@ const CustomerOrders = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -31,7 +34,15 @@ const CustomerOrders = () => {
     if (user) {
       fetchOrders();
     }
-  }, [user, fetchOrders]);
+    
+    if (searchParams.get('success') === 'true') {
+      setShowSuccessAlert(true);
+      searchParams.delete('success');
+      setSearchParams(searchParams, { replace: true });
+      
+      setTimeout(() => setShowSuccessAlert(false), 5000);
+    }
+  }, [user, fetchOrders, searchParams, setSearchParams]);
 
 
   // Filtrado de pedidos según pestaña
@@ -44,6 +55,17 @@ const CustomerOrders = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+      
+      {showSuccessAlert && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-50 border border-green-200 text-green-800 px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-bounce">
+          <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span className="font-bold">¡Pago exitoso! Aquí está tu pedido.</span>
+          <button onClick={() => setShowSuccessAlert(false)} className="ml-2 font-bold text-green-900">&times;</button>
+        </div>
+      )}
+
       {/* Header Fijo */}
       <div className="bg-white px-4 pt-6 pb-2 border-b sticky top-0 z-10 shadow-sm">
         <h1 className="text-2xl font-black text-gray-900 tracking-tight">Mis Pedidos</h1>

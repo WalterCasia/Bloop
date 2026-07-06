@@ -23,6 +23,7 @@ const PackDetail = () => {
   const [status, setStatus] = useState('idle'); 
   const [errorMessage, setErrorMessage] = useState('');
   const [timeLeft, setTimeLeft] = useState(600); // 10 minutos (600 segundos) exactos
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   useEffect(() => {
     let timer;
@@ -57,8 +58,25 @@ const PackDetail = () => {
   };
 
   const handlePayment = async () => {
-    // Interfaz que enlazará con Stripe y el endpoint POST /api/orders/confirm
-    alert('Iniciando flujo de pago seguro...');
+    setIsProcessingPayment(true);
+    setErrorMessage('');
+    
+    try {
+      const response = await apiClient.post('/api/payments/create-checkout-session', {
+        pack_id: pack.pack_id,
+        quantity: 1
+      });
+      
+      if (response.data.status === 'success' && response.data.sessionUrl) {
+        // Redirigir directamente a la pasarela de Stripe alojada
+        window.location.href = response.data.sessionUrl;
+      } else {
+        throw new Error('No se pudo obtener la URL de pago.');
+      }
+    } catch (error) {
+      setIsProcessingPayment(false);
+      setErrorMessage(error.response?.data?.message || 'Error de conexión con la pasarela de pagos.');
+    }
   };
 
   // Función de formateo matemático estricto MM:SS
@@ -156,9 +174,10 @@ const PackDetail = () => {
             
             <button 
               onClick={handlePayment}
-              style={{ width: '100%', backgroundColor: '#16A34A', color: 'white', fontWeight: 'bold', padding: '16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '1rem', boxShadow: '0 4px 6px rgba(22, 163, 74, 0.2)' }}
+              disabled={isProcessingPayment}
+              style={{ width: '100%', backgroundColor: isProcessingPayment ? '#9CA3AF' : '#16A34A', color: 'white', fontWeight: 'bold', padding: '16px', borderRadius: '8px', border: 'none', cursor: isProcessingPayment ? 'wait' : 'pointer', fontSize: '1rem', boxShadow: isProcessingPayment ? 'none' : '0 4px 6px rgba(22, 163, 74, 0.2)' }}
             >
-              Confirmar y Pagar
+              {isProcessingPayment ? 'Conectando con Stripe...' : 'Confirmar y Pagar'}
             </button>
           </div>
         )}

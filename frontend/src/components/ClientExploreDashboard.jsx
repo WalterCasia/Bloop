@@ -5,7 +5,7 @@ import { Filter, Map as MapIcon, List, AlertCircle } from 'lucide-react';
 import apiClient from '../api/apiClient';
 import SurprisePackCard from './SurprisePackCard';
 import MapPricePill from './MapPricePills';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -16,6 +16,8 @@ const DEFAULT_ZOOM = 13;
 
 const ClientExploreDashboard = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showCancelAlert, setShowCancelAlert] = useState(false);
   
   // Estado de Vista Móvil (Lista vs Mapa)
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
@@ -59,6 +61,15 @@ const ClientExploreDashboard = () => {
       );
     } else {
       fetchPacks(DEFAULT_LAT, DEFAULT_LNG, 5);
+    }
+
+    if (searchParams.get('canceled') === 'true') {
+      setShowCancelAlert(true);
+      // Limpiar URL
+      searchParams.delete('canceled');
+      setSearchParams(searchParams, { replace: true });
+      
+      setTimeout(() => setShowCancelAlert(false), 5000);
     }
   }, []);
 
@@ -125,6 +136,14 @@ const ClientExploreDashboard = () => {
   return (
     <div className="flex h-[calc(100vh-64px)] w-full overflow-hidden bg-white relative">
       
+      {showCancelAlert && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-amber-50 border border-amber-200 text-amber-800 px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-bounce">
+          <AlertCircle size={20} className="text-amber-500" />
+          <span className="font-bold">Pago cancelado. El pack no fue reservado.</span>
+          <button onClick={() => setShowCancelAlert(false)} className="ml-2 font-bold text-amber-900">&times;</button>
+        </div>
+      )}
+
       {/* =========================================
           PANEL IZQUIERDO: LISTA DE OFERTAS (55%)
           ========================================= */}
