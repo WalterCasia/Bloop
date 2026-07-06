@@ -282,31 +282,78 @@ export default async function merchantRoutes(fastify, options) {
   // Obtener pedidos vivos (PAGADO) del día para el dashboard (GET)
   // ----------------------------------------------------------------------
   fastify.get('/api/merchant/orders', {
-    onRequest: [fastify.authenticate]
+    onRequest: [fastify.authenticate],
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          storeId: { type: 'string', format: 'uuid' },
+          type: { type: 'string', enum: ['dashboard', 'active', 'history'], default: 'dashboard' },
+          limit: { type: 'integer', default: 50 },
+          offset: { type: 'integer', default: 0 }
+        }
+      }
+    }
   }, async (request, reply) => {
-    const storeId = request.user.sub || request.user.id;
+    // Si storeId viene por query, lo priorizamos (para multi-sucursal)
+    const storeId = request.query.storeId || request.user.sub || request.user.id;
+    const { type, limit, offset } = request.query;
+    
     const client = await fastify.pg.connect();
     
     try {
       const today = new Date().toISOString().split('T')[0];
+      let query = '';
+      let queryParams = [];
+
+      if (type === 'dashboard') {
+        // Dashboard: PAGADO y RECOGIDO de hoy (para métricas y lista en vivo)
+        query = `
+          SELECT 
+            o.id, o.status, o.quantity, o.qr_code_secret as validation_token, o.created_at,
+            c.full_name as client_name, sp.title as pack_title
+          FROM public.orders o
+          JOIN public.profiles c ON o.client_id = c.id
+          JOIN public.surprise_packs sp ON o.pack_id = sp.id
+          WHERE o.store_id = $1 
+            AND o.status IN ('PAGADO', 'RECOGIDO') 
+            AND DATE(o.created_at AT TIME ZONE 'UTC') = $2
+          ORDER BY o.created_at ASC
+        `;
+        queryParams = [storeId, today];
+      } else if (type === 'active') {
+        // Pedidos Activos (PAGADO) sin restricción de fecha, ordenados por los más antiguos primero
+        query = `
+          SELECT 
+            o.id, o.status, o.quantity, o.qr_code_secret as validation_token, o.created_at,
+            c.full_name as client_name, sp.title as pack_title
+          FROM public.orders o
+          JOIN public.profiles c ON o.client_id = c.id
+          JOIN public.surprise_packs sp ON o.pack_id = sp.id
+          WHERE o.store_id = $1 
+            AND o.status = 'PAGADO'
+          ORDER BY o.created_at ASC
+          LIMIT $2 OFFSET $3
+        `;
+        queryParams = [storeId, limit, offset];
+      } else if (type === 'history') {
+        // Historial (RECOGIDO, CANCELADO) de cualquier fecha, ordenados por los más recientes primero
+        query = `
+          SELECT 
+            o.id, o.status, o.quantity, o.qr_code_secret as validation_token, o.created_at,
+            c.full_name as client_name, sp.title as pack_title
+          FROM public.orders o
+          JOIN public.profiles c ON o.client_id = c.id
+          JOIN public.surprise_packs sp ON o.pack_id = sp.id
+          WHERE o.store_id = $1 
+            AND o.status IN ('RECOGIDO', 'CANCELADO')
+          ORDER BY o.created_at DESC
+          LIMIT $2 OFFSET $3
+        `;
+        queryParams = [storeId, limit, offset];
+      }
       
-      const query = `
-        SELECT 
-          o.id,
-          o.status,
-          o.quantity,
-          o.qr_code_secret as validation_token,
-          o.created_at,
-          c.full_name as client_name
-        FROM public.orders o
-        JOIN public.profiles c ON o.client_id = c.id
-        WHERE o.store_id = $1 
-          AND o.status = 'PAGADO' 
-          AND DATE(o.created_at AT TIME ZONE 'UTC') = $2
-        ORDER BY o.created_at ASC
-      `;
-      
-      const { rows } = await client.query(query, [storeId, today]);
+      const { rows } = await client.query(query, queryParams);
 
       return reply.code(200).send({
         status: 'success',
