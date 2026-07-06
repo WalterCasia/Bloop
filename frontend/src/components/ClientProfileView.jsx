@@ -10,7 +10,8 @@ import {
   LogOut, 
   Save,
   MapPin,
-  ArrowLeft
+  ArrowLeft,
+  Camera
 } from 'lucide-react';
 
 const ClientProfileView = () => {
@@ -21,6 +22,8 @@ const ClientProfileView = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   
   // Estado de Impacto (Simulado para este ejemplo si no hay historial)
   const [impactStats, setImpactStats] = useState({
@@ -56,6 +59,9 @@ const ClientProfileView = () => {
           fullName: data.full_name || user.user_metadata?.full_name || '',
           phone: data.phone_number || ''
         });
+        if (data.avatar_url) {
+          setAvatarUrl(data.avatar_url);
+        }
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -69,7 +75,39 @@ const ClientProfileView = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const uploadAvatar = async (event) => {
+    try {
+      setUploadingAvatar(true);
+      const file = event.target.files[0];
+      if (!file) return;
 
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: data.publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+      
+      setAvatarUrl(data.publicUrl);
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      alert('Hubo un error al subir la foto. Verifica que el bucket "avatars" exista en Supabase.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -122,8 +160,12 @@ const ClientProfileView = () => {
           </button>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">Mi Perfil</h1>
         </div>
-        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-700">
-          <User size={20} />
+        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-700 overflow-hidden border border-green-200">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+          ) : (
+            <User size={20} />
+          )}
         </div>
       </div>
 
@@ -157,6 +199,33 @@ const ClientProfileView = () => {
               <h2 className="text-lg font-bold text-gray-900 tracking-tight">Datos Personales</h2>
             </div>
             
+            <div className="flex flex-col items-center py-4">
+              <div className="relative group cursor-pointer">
+                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 overflow-hidden border-2 border-gray-200 shadow-sm">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <User size={40} />
+                  )}
+                </div>
+                <label className="absolute bottom-0 right-0 w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white border-2 border-white shadow-md cursor-pointer hover:bg-green-700 transition-colors">
+                  {uploadingAvatar ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <Camera size={14} />
+                  )}
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={uploadAvatar} 
+                    disabled={uploadingAvatar}
+                    className="hidden" 
+                  />
+                </label>
+              </div>
+              <p className="text-xs font-medium text-gray-500 mt-3">Cambiar foto de perfil</p>
+            </div>
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Nombre Completo</label>
