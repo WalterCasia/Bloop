@@ -214,14 +214,14 @@ const MerchantMainDashboard = () => {
       <div className="max-w-md mx-auto mt-2">
         {/* Encabezado de Estado Diario */}
         <header className="mb-6 flex justify-between items-center">
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Panel Operativo</h1>
-          <MerchantBranchSelector />
-        </header>
+          <div>
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight">Panel Operativo</h1>
             <p className="text-gray-500 font-medium text-sm mt-1 flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${packData.status === 'SOLD_OUT' ? 'bg-red-500' : 'bg-green-500'}`}></span>
               {packData.status === 'SOLD_OUT' ? 'Agotado hoy' : 'Activo y visible'}
             </p>
           </div>
+          <MerchantBranchSelector />
         </header>
 
         {/* Tarjeta Central de Control de Stock Efímero */}
