@@ -61,6 +61,10 @@ export default async function paymentRoutes(fastify, options) {
     }
 
     try {
+      // Determinar la URL del frontend dinámicamente desde el Origin de la petición
+      // para evitar problemas de CORS o redirección en producción
+      const frontendUrl = process.env.FRONTEND_URL || request.headers.origin || 'http://localhost:5173';
+
       // 3. Crear la sesión de Stripe Checkout
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
@@ -86,9 +90,9 @@ export default async function paymentRoutes(fastify, options) {
             quantity: quantity,
           },
         ],
-        // URLs dinámicas de redirección a tu frontend local (en producción será tu dominio real)
-        success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/customer/orders?success=true`,
-        cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/customer/explore?canceled=true`,
+        // URLs dinámicas de redirección al frontend correcto
+        success_url: `${frontendUrl}/customer/orders?success=true`,
+        cancel_url: `${frontendUrl}/explore?canceled=true`,
       });
 
       // 4. Retornar la URL al frontend
