@@ -201,7 +201,7 @@ const ClientExploreDashboard = () => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] md:h-screen w-full overflow-hidden bg-white relative">
+    <div className="flex flex-col h-screen md:h-[calc(100vh-80px)] w-full overflow-hidden bg-white relative">
       <ClientTopNav 
         activeLocationMode={activeLocationMode}
         selectedZone={selectedZone}
@@ -223,16 +223,17 @@ const ClientExploreDashboard = () => {
         </div>
       )}
 
+      {/* =========================================
+          CONTENEDOR GLOBAL DEL DASHBOARD (Layout 2 Columnas)
+          ========================================= */}
       <div className="flex flex-1 overflow-hidden relative">
+        
         {/* =========================================
-            PANEL IZQUIERDO: LISTA DE OFERTAS (55%)
+            COLUMNA IZQUIERDA: FEED DE LISTADO (55%)
             ========================================= */}
         <div 
-          className={`w-full lg:w-[55%] h-full flex-col bg-gray-50 flex ${viewMode === 'map' ? 'hidden lg:flex' : 'flex'}`}
+          className={`w-full lg:w-[55%] overflow-y-auto px-6 py-4 ${viewMode === 'map' ? 'hidden lg:block' : 'block'}`}
         >
-        {/* Contenedor con Scroll para las Tarjetas */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-24 lg:pb-6 relative">
-          
           {loading ? (
             <div className="flex flex-col items-center justify-center h-48">
               <div className="w-10 h-10 border-4 border-green-200 border-t-green-600 rounded-full animate-spin"></div>
@@ -241,7 +242,10 @@ const ClientExploreDashboard = () => {
           ) : error ? (
             <div className="bg-red-50 p-6 rounded-2xl border border-red-100 text-center">
               <p className="text-red-700 font-medium">{error}</p>
-              <button onClick={() => fetchPacks(viewState.latitude, viewState.longitude, selectedRadius)} className="mt-4 bg-white px-4 py-2 rounded-full text-sm font-bold text-red-600 border border-red-200 shadow-sm">
+              <button 
+                onClick={() => fetchPacks(viewState.latitude, viewState.longitude, selectedRadius)} 
+                className="mt-4 bg-white px-4 py-2 rounded-full text-sm font-bold text-red-600 border border-red-200 shadow-sm"
+              >
                 Reintentar
               </button>
             </div>
@@ -254,7 +258,7 @@ const ClientExploreDashboard = () => {
               <p className="text-gray-500 text-sm max-w-[250px]">No encontramos opciones con los filtros actuales en esta zona.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 lg:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-24 lg:pb-6">
               {filteredPacks.map(pack => (
                 <div 
                   key={pack.pack_id} 
@@ -271,22 +275,24 @@ const ClientExploreDashboard = () => {
             </div>
           )}
         </div>
-      </div>
 
-      {/* =========================================
-          PANEL DERECHO: MAPA INTERACTIVO (45%)
-          ========================================= */}
-      <div 
-        className={`w-full lg:w-[45%] h-full sticky top-0 bg-gray-200 ${viewMode === 'list' ? 'hidden lg:block' : 'block'}`}
-      >
-        <Map
-          {...viewState}
-          onMove={onMapMove}
-          onMoveEnd={onMapMoveEnd}
-          mapStyle="mapbox://styles/mapbox/streets-v12"
-          mapboxAccessToken={MAPBOX_TOKEN}
+        {/* =========================================
+            COLUMNA DERECHA: CONTENEDOR STICKY EN RECUADRO (45%)
+            ========================================= */}
+        <div 
+          className={`hidden lg:block lg:w-[45%] h-full sticky top-0 p-4 pl-0 ${viewMode === 'list' ? 'hidden lg:block' : 'block w-full'}`}
         >
-                  {filteredPacks.map(pack => (
+          {/* El Recuadro del Mapa (Tarjeta Flotante estilo Airbnb) */}
+          <div className="w-full h-full rounded-3xl overflow-hidden border border-gray-200 shadow-inner relative bg-gray-100">
+            <Map
+              {...viewState}
+              onMove={onMapMove}
+              onMoveEnd={onMapMoveEnd}
+              mapStyle="mapbox://styles/mapbox/streets-v12"
+              mapboxAccessToken={MAPBOX_TOKEN}
+              style={{ width: '100%', height: '100%' }}
+            >
+              {filteredPacks.map(pack => (
                 <MapPricePill 
                   key={pack.pack_id} 
                   pack={pack} 
@@ -295,24 +301,29 @@ const ClientExploreDashboard = () => {
                 />
               ))}
 
-          {/* Controles Nativos de Mapbox */}
-          <NavigationControl position="bottom-right" />
-          <GeolocateControl position="bottom-right" />
-        </Map>
+              {/* Controles Nativos de Mapbox encapsulados para márgenes */}
+              <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+                <NavigationControl position="top-right" showCompass={false} style={{ margin: 0, position: 'relative' }} />
+                <GeolocateControl position="top-right" style={{ margin: 0, position: 'relative' }} />
+              </div>
+            </Map>
 
-        {/* Indicador de Carga sobre el Mapa */}
-        {loading && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-md flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-sm font-bold text-gray-900">Buscando en esta zona...</span>
+            {/* Sincronización Visual y Estados de Carga dentro del Recuadro */}
+            {loading && (
+              <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center z-10 rounded-3xl pointer-events-none">
+                <div className="bg-white/90 px-6 py-3 rounded-full shadow-lg flex items-center gap-3">
+                  <div className="w-5 h-5 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm font-bold text-gray-900 tracking-tight">Cargando zona...</span>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
-    </div>
 
-    {/* =========================================
-        FAB FLOTANTE PARA MÓVILES (Toggle)
-        ========================================= */}
+      {/* =========================================
+          FAB FLOTANTE PARA MÓVILES (Toggle)
+          ========================================= */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 lg:hidden z-50">
         <button 
           onClick={() => setViewMode(prev => prev === 'list' ? 'map' : 'list')}
