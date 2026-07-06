@@ -6,7 +6,7 @@ import { ReservationProvider } from './contexts/ReservationContext';
 // Importación de Componentes Principales
 import ClientExploreDashboard from './components/ClientExploreDashboard';
 import CustomerOrders from './components/orders/CustomerOrders';
-import CustomerProfile from './components/CustomerProfile';
+import ClientProfileView from './components/ClientProfileView';
 import PackDetail from './components/PackDetail';
 import MerchantMainDashboard from './components/MerchantMainDashboard';
 import DailyStockDashboard from './components/DailyStockDashboard';
@@ -126,7 +126,7 @@ const App = () => {
               path="/profile" 
               element={
                 <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
-                  <CustomerProfile />
+                  <ClientProfileView />
                 </ProtectedRoute>
               } 
             />
