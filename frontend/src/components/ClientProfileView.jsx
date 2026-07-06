@@ -30,26 +30,10 @@ const ClientProfileView = () => {
   // Estado del Formulario
   const [formData, setFormData] = useState({
     fullName: '',
-    phone: '',
-    defaultZone: 'Antigua Guatemala',
-    searchRadius: 5,
-    dietaryPreferences: []
+    phone: ''
   });
 
-  const DIETARY_OPTIONS = [
-    { id: 'vegetarian', label: 'Vegetariano' },
-    { id: 'vegan', label: 'Vegano' },
-    { id: 'gluten_free', label: 'Sin Gluten' },
-    { id: 'lactose_free', label: 'Sin Lactosa' }
-  ];
 
-  const ZONES = [
-    'Antigua Guatemala',
-    'Zona 10 - Ciudad de Guatemala',
-    'Zona 4 - Cuatro Grados Norte',
-    'Zona 15',
-    'Cayalá'
-  ];
 
   useEffect(() => {
     fetchUserProfile();
@@ -70,10 +54,7 @@ const ClientProfileView = () => {
       if (data) {
         setFormData({
           fullName: data.full_name || user.user_metadata?.full_name || '',
-          phone: data.phone_number || '',
-          defaultZone: data.default_zone || 'Antigua Guatemala',
-          searchRadius: data.search_radius || 5,
-          dietaryPreferences: data.dietary_preferences || []
+          phone: data.phone_number || ''
         });
       }
     } catch (error) {
@@ -88,16 +69,7 @@ const ClientProfileView = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const toggleDietaryPreference = (prefId) => {
-    setFormData(prev => {
-      const current = prev.dietaryPreferences;
-      if (current.includes(prefId)) {
-        return { ...prev, dietaryPreferences: current.filter(id => id !== prefId) };
-      } else {
-        return { ...prev, dietaryPreferences: [...current, prefId] };
-      }
-    });
-  };
+
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -110,9 +82,6 @@ const ClientProfileView = () => {
         .update({
           full_name: formData.fullName,
           phone_number: formData.phone,
-          default_zone: formData.defaultZone,
-          search_radius: parseInt(formData.searchRadius),
-          dietary_preferences: formData.dietaryPreferences,
           updated_at: new Date()
         })
         .eq('id', user.id);
@@ -226,79 +195,7 @@ const ClientProfileView = () => {
             </div>
           </section>
 
-          {/* Radar Base y Ubicación */}
-          <section className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <MapPin className="text-gray-400" size={20} />
-              <h2 className="text-lg font-bold text-gray-900 tracking-tight">Radar de Búsqueda</h2>
-            </div>
-            
-            <div className="space-y-5">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Zona Base por Defecto</label>
-                <select 
-                  name="defaultZone"
-                  value={formData.defaultZone}
-                  onChange={handleChange}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 transition-shadow appearance-none"
-                >
-                  {ZONES.map(zone => (
-                    <option key={zone} value={zone}>{zone}</option>
-                  ))}
-                </select>
-              </div>
 
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-sm font-bold text-gray-700">Radio de Búsqueda</label>
-                  <span className="text-sm font-black text-green-600">{formData.searchRadius} km</span>
-                </div>
-                <input 
-                  type="range" 
-                  name="searchRadius"
-                  min="1" 
-                  max="30" 
-                  value={formData.searchRadius}
-                  onChange={handleChange}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
-                />
-                <div className="flex justify-between text-xs text-gray-400 font-medium mt-2">
-                  <span>1 km</span>
-                  <span>15 km</span>
-                  <span>30 km</span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Preferencias Dietéticas */}
-          <section className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Leaf className="text-gray-400" size={20} />
-              <h2 className="text-lg font-bold text-gray-900 tracking-tight">Preferencias Dietéticas</h2>
-            </div>
-            <p className="text-sm text-gray-500 font-medium">Filtraremos los packs para priorizar opciones que se adapten a tu estilo de vida.</p>
-            
-            <div className="flex flex-wrap gap-2 pt-2">
-              {DIETARY_OPTIONS.map(option => {
-                const isActive = formData.dietaryPreferences.includes(option.id);
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => toggleDietaryPreference(option.id)}
-                    className={`px-4 py-2 rounded-full text-sm font-bold transition-colors border ${
-                      isActive 
-                        ? 'bg-green-600 text-white border-green-700' 
-                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
 
           {/* Botón Guardar Cambios (Sticky en Desktop o Inline) */}
           <div className="pt-4 pb-8">

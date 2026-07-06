@@ -18,7 +18,7 @@ import SignupPage from './components/SignupPage';
 import NavigationLayout from './components/NavigationLayout';
 import RoleSelectionOnboarding from './components/RoleSelectionOnboarding';
 import ClientOnboardingWizard from './components/ClientOnboardingWizard';
-import ClientProfilePreferences from './components/ClientProfilePreferences';
+import ClientPreferencesView from './components/ClientPreferencesView';
 import MerchantOnboardingWizard from './components/MerchantOnboardingWizard';
 import SurprisePackTemplateEditor from './components/SurprisePackTemplateEditor';
 
@@ -135,7 +135,7 @@ const App = () => {
               path="/client/preferences" 
               element={
                 <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
-                  <ClientProfilePreferences />
+                  <ClientPreferencesView />
                 </ProtectedRoute>
               } 
             />
