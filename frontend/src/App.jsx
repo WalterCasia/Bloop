@@ -28,6 +28,7 @@ import SurprisePackTemplateEditor from './components/SurprisePackTemplateEditor'
 import MerchantDashboardLayout from './components/merchant/MerchantDashboardLayout';
 import UnderConstructionView from './components/merchant/UnderConstructionView';
 import MerchantOrdersView from './components/merchant/MerchantOrdersView';
+import MerchantStoreSettings from './components/merchant/MerchantStoreSettings';
 
 // Placeholder de vistas auxiliares para mantener el enrutador funcional
 const Unauthorized = () => <div style={{ textAlign: 'center', padding: '40px', color: 'red' }}><h1>Acceso Denegado (403)</h1><p>Tu rol no permite acceder a esta área.</p></div>;
@@ -190,13 +191,13 @@ const App = () => {
               
               {/* Rutas Completadas */}
               <Route path="/merchant/orders" element={<MerchantOrdersView />} />
+              <Route path="/merchant/settings" element={<MerchantStoreSettings />} />
               
               {/* Rutas en Construcción (Fases Posteriores) */}
               <Route path="/merchant/performance" element={<UnderConstructionView title="Rendimiento e Impacto" />} />
               <Route path="/merchant/reviews" element={<UnderConstructionView title="Reseñas de Clientes" />} />
               <Route path="/merchant/reports" element={<UnderConstructionView title="Reportes Analíticos" />} />
               <Route path="/merchant/payments" element={<UnderConstructionView title="Historial de Pagos" />} />
-              <Route path="/merchant/settings" element={<UnderConstructionView title="Configuración de Sucursal" />} />
             </Route>
           </Route>
 

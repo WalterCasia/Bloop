@@ -582,4 +582,174 @@ export default async function merchantRoutes(fastify, options) {
       client.release();
     }
   });
-}
+  // ----------------------------------------------------------------------
+  // 4. ACTUALIZAR CONFIGURACIÓN DE SUCURSAL Y PACK (PATCH)
+  // ----------------------------------------------------------------------
+  fastify.patch('/api/merchant/settings', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          storeId: { type: 'string', format: 'uuid' },
+          isActive: { type: 'boolean' },
+          lat: { type: 'number' },
+          lng: { type: 'number' },
+          salePrice: { type: 'number' },
+          startTime: { type: 'string' },
+          endTime: { type: 'string' }
+        },
+        required: ['storeId']
+      }
+    }
+  }, async (request, reply) => {
+    const { storeId, isActive, lat, lng, salePrice, startTime, endTime } = request.body;
+    const owner_id = request.user.sub || request.user.id;
+    
+    const client = await fastify.pg.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Validar permisos
+      const storeCheck = await client.query('SELECT id FROM public.stores WHERE id = $1 AND owner_id = $2', [storeId, owner_id]);
+      if (storeCheck.rowCount === 0) {
+        throw new Error('UNAUTHORIZED');
+      }
+
+      // Actualizar Sucursal
+      let updateStoreQuery = `UPDATE public.stores SET updated_at = NOW()`;
+      const storeParams = [];
+      let storeParamIndex = 1;
+      
+      if (isActive !== undefined) {
+        updateStoreQuery += `, is_active = $${storeParamIndex}`;
+        storeParams.push(isActive);
+        storeParamIndex++;
+      }
+      
+      if (lat !== undefined && lng !== undefined) {
+        updateStoreQuery += `, location = ST_SetSRID(ST_MakePoint($${storeParamIndex}, $${storeParamIndex+1}), 4326)`;
+        storeParams.push(lng, lat);
+        storeParamIndex += 2;
+      }
+      
+      updateStoreQuery += ` WHERE id = $${storeParamIndex}`;
+        storeParams.push(storeId);
+      
+      await client.query(updateStoreQuery, storeParams);
+
+      // Actualizar Pack de Hoy si existe
+      if (salePrice !== undefined || (startTime && endTime)) {
+        const today = new Date().toISOString().split('T')[0];
+        const packQuery = `SELECT id FROM public.surprise_packs WHERE store_id = $1 AND DATE(created_at AT TIME ZONE 'UTC') = $2 AND is_active = true`;
+        const packRes = await client.query(packQuery, [storeId, today]);
+        
+        if (packRes.rowCount > 0) {
+          const packId = packRes.rows[0].id;
+          let updatePackQuery = `UPDATE public.surprise_packs SET updated_at = NOW()`;
+          const packParams = [];
+          let packParamIndex = 1;
+          
+          if (salePrice !== undefined) {
+            updatePackQuery += `, discounted_price = $${packParamIndex}`;
+            packParams.push(salePrice);
+            packParamIndex++;
+          }
+          
+          if (startTime && endTime) {
+            updatePackQuery += `, pickup_start_time = $${packParamIndex}::timestamptz, pickup_end_time = $${packParamIndex+1}::timestamptz`;
+            packParams.push(`${today} ${startTime}:00-06`, `${today} ${endTime}:00-06`);
+            packParamIndex += 2;
+          }
+          
+          updatePackQuery += ` WHERE id = $${packParamIndex}`;
+          packParams.push(packId);
+          
+          await client.query(updatePackQuery, packParams);
+        }
+      }
+
+      await client.query('COMMIT');
+      return reply.code(200).send({ status: 'success', message: 'Configuración actualizada.' });
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      fastify.log.error(error);
+      if (error.message === 'UNAUTHORIZED') {
+        return reply.code(403).send({ error: 'Forbidden', message: 'No tienes permisos sobre esta sucursal.' });
+      }
+      return reply.code(500).send({ error: 'Internal Server Error', message: 'No se pudo actualizar la configuración.' });
+    } finally {
+      client.release();
+    }
+  });
+
+  // ----------------------------------------------------------------------
+  // 5. OBTENER CONFIGURACIÓN DE SUCURSAL Y PACK (GET)
+  // ----------------------------------------------------------------------
+  fastify.get('/api/merchant/settings', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          storeId: { type: 'string', format: 'uuid' }
+        },
+        required: ['storeId']
+      }
+    }
+  }, async (request, reply) => {
+    const { storeId } = request.query;
+    const owner_id = request.user.sub || request.user.id;
+    
+    const client = await fastify.pg.connect();
+    try {
+      // Validar permisos y obtener store
+      const storeRes = await client.query(`
+        SELECT id, is_active, ST_X(location::geometry) as lng, ST_Y(location::geometry) as lat 
+        FROM public.stores 
+        WHERE id = $1 AND owner_id = $2
+      `, [storeId, owner_id]);
+      
+      if (storeRes.rowCount === 0) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'No tienes permisos sobre esta sucursal.' });
+      }
+      
+      const store = storeRes.rows[0];
+      
+      // Obtener pack activo de hoy (si existe)
+      const today = new Date().toISOString().split('T')[0];
+      const packRes = await client.query(`
+        SELECT discounted_price as sale_price, 
+               to_char(pickup_start_time AT TIME ZONE 'UTC', 'HH24:MI') as start_time,
+               to_char(pickup_end_time AT TIME ZONE 'UTC', 'HH24:MI') as end_time
+        FROM public.surprise_packs 
+        WHERE store_id = $1 AND DATE(created_at AT TIME ZONE 'UTC') = $2 AND is_active = true
+      `, [storeId, today]);
+      
+      let pack = null;
+      if (packRes.rowCount > 0) {
+        pack = packRes.rows[0];
+      }
+      
+      return reply.code(200).send({
+        status: 'success',
+        settings: {
+          store: {
+            isActive: store.is_active,
+            lat: store.lat,
+            lng: store.lng
+          },
+          pack: pack
+        }
+      });
+
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error', message: 'No se pudo obtener la configuración.' });
+    } finally {
+      client.release();
+    }
+  });
+
+};
