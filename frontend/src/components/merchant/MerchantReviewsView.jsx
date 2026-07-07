@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Star, MessageSquare, Filter, User } from 'lucide-react';
 import apiClient from '../../api/apiClient';
-import { useStoreContext } from '../../context/StoreContext';
+import { useStoreContext } from '../../contexts/StoreContext';
 
 const MerchantReviewsView = () => {
   const { activeStore } = useStoreContext();
