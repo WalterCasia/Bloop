@@ -59,6 +59,10 @@ const ProtectedRoute = ({ children, requiredRole, requireOnboarding = false }) =
   const userRole = user.user_metadata?.role;
   
   if (!userRole) {
+    const intendedRole = localStorage.getItem('oauth_intended_role');
+    if (intendedRole === 'COMERCIO') {
+      return <Navigate to="/auth/merchant" replace />;
+    }
     return <Navigate to="/auth/client" replace />;
   }
 

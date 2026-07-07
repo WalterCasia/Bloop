@@ -101,6 +101,7 @@ const ClientAuthFlow = () => {
     try {
       setLoading(true);
       setError('');
+      localStorage.setItem('oauth_intended_role', 'CLIENTE');
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
