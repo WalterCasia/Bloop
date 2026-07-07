@@ -42,7 +42,7 @@ export default async function packRoutes(fastify, options) {
       FROM public.surprise_packs sp
       INNER JOIN public.profiles p ON p.id = sp.store_id
       WHERE sp.is_active = true
-        AND p.role IN ('COMERCIO', 'OWNER', 'STAFF')
+        AND p.role = 'COMERCIO'
         AND sp.available_quantity > 0
         -- Filtrar packs cuya ventana de recogida esté activa o en un futuro próximo
         AND sp.pickup_end_time >= NOW()

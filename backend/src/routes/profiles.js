@@ -14,7 +14,7 @@ export default async function profileRoutes(fastify, options) {
           ST_X(location::geometry) as lng, 
           ST_Y(location::geometry) as lat
         FROM public.profiles
-        WHERE id = $1 AND role IN ('COMERCIO', 'OWNER', 'STAFF')
+        WHERE id = $1 AND role = 'COMERCIO'
       `;
       const { rows } = await client.query(query, [userId]);
 
