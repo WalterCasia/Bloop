@@ -145,54 +145,56 @@ const MerchantAuthFlow = () => {
     setError('');
 
     try {
-      if (!inviteCode || inviteCode.length !== 6) {
-        throw new Error('El código de invitación debe tener 6 caracteres.');
-      }
-
-      let authUser;
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        if (signInError.message.includes('Invalid login credentials')) {
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                role: 'STAFF',
-                onboarding_completed: true
-              }
-            }
-          });
-          if (signUpError) throw signUpError;
-          
-          if (!signUpData.user) {
-             throw new Error("Por favor verifica tu correo para continuar.");
-          }
-          authUser = signUpData.user;
-        } else {
-          throw signInError;
-        }
-      } else {
-        authUser = signInData.user;
+    try {
+      if (isLogin) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) throw signInError;
         
-        if (authUser?.user_metadata?.role === 'CLIENTE') {
+        if (signInData?.user?.user_metadata?.role === 'CLIENTE') {
           await supabase.auth.signOut();
           throw new Error('Esta cuenta pertenece a un cliente. Por favor ingresa a través del Portal para Clientes.');
         }
-      }
+      } else {
+        if (!inviteCode || inviteCode.length !== 6) {
+          throw new Error('El código de invitación debe tener 6 caracteres.');
+        }
 
-      try {
-        const { session } = await supabase.auth.getSession();
-        await apiClient.post('/api/merchant/invitations/accept', 
-          { code: inviteCode.toUpperCase() },
-          { headers: { Authorization: `Bearer ${session.access_token}` } }
-        );
-      } catch (invError) {
-        throw new Error(invError.response?.data?.message || 'Código de invitación inválido o expirado.');
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              role: 'STAFF',
+              onboarding_completed: true
+            }
+          }
+        });
+        
+        if (signUpError) {
+          if (signUpError.message.includes('User already registered')) {
+            throw new Error('Esta cuenta ya existe. Por favor inicia sesión.');
+          }
+          throw signUpError;
+        }
+        
+        if (!signUpData.user) {
+           throw new Error("Por favor verifica tu correo para continuar.");
+        }
+
+        try {
+          const { session } = await supabase.auth.getSession();
+          if (session) {
+            await apiClient.post('/api/merchant/invitations/accept', 
+              { code: inviteCode.toUpperCase() },
+              { headers: { Authorization: `Bearer ${session.access_token}` } }
+            );
+          }
+        } catch (invError) {
+          throw new Error(invError.response?.data?.message || 'Código de invitación inválido o expirado.');
+        }
       }
 
       navigate('/merchant/dashboard', { replace: true });
@@ -207,7 +209,10 @@ const MerchantAuthFlow = () => {
   const canContinue = () => {
     if (step === 1) return !!selectedRole;
     if (step === 2) {
-      if (selectedRole === 'employee') return email && password && inviteCode.length === 6;
+      if (selectedRole === 'employee') {
+        if (isLogin) return email && password;
+        return email && password && inviteCode.length === 6;
+      }
       if (selectedRole === 'manager') {
         if (isLogin) return email && password;
         return fullName && email && password;
@@ -239,16 +244,15 @@ const MerchantAuthFlow = () => {
             {selectedRole === 'employee' ? 'Acceso de Empleados' : (isLogin ? 'Bienvenido de nuevo' : 'Crea tu cuenta de Comercio')}
           </h2>
           <p className="mt-4 text-lg text-gray-500 mb-8">
-            {selectedRole === 'employee' 
-              ? 'Ingresa tus credenciales y el código proporcionado por tu gerente.'
-              : (
-                <span>
-                  O{' '}
-                  <button onClick={() => setIsLogin(!isLogin)} className="font-bold text-gray-900 underline hover:text-gray-600">
-                    {isLogin ? 'crea una cuenta nueva' : 'inicia sesión en tu cuenta'}
-                  </button>
-                </span>
-              )}
+            {selectedRole === 'employee' && !isLogin && 'Crea tu cuenta e ingresa el código proporcionado por tu gerente.'}
+            {selectedRole === 'employee' && isLogin && 'Ingresa tus credenciales para acceder al sistema.'}
+            {selectedRole === 'manager' && 'Accede al panel de control de tu comercio.'}
+            <span className="block mt-2">
+              O{' '}
+              <button onClick={() => setIsLogin(!isLogin)} className="font-bold text-gray-900 underline hover:text-gray-600">
+                {isLogin ? 'crea una cuenta nueva' : 'inicia sesión en tu cuenta'}
+              </button>
+            </span>
           </p>
 
           {error && (
@@ -311,7 +315,7 @@ const MerchantAuthFlow = () => {
               </div>
             </div>
 
-            {selectedRole === 'employee' && (
+            {selectedRole === 'employee' && !isLogin && (
               <div>
                 <label className="block text-sm font-bold text-blue-600 mb-1 mt-8">Código de Invitación</label>
                 <div className="relative">
