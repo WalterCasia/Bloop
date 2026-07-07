@@ -22,7 +22,10 @@ const MerchantAuthFlow = () => {
     if (user && view === 'select') {
       const role = user.user_metadata?.role;
       if (role === 'CLIENTE') {
-        navigate('/explore', { replace: true });
+        supabase.auth.signOut().then(() => {
+          setError('Esta cuenta pertenece a un cliente. Por favor ingresa a través del Portal para Clientes.');
+          setView('employee_login'); // Para mostrar el error en el formulario si estaban en select
+        });
       } else if (role === 'COMERCIO') {
         const onboardingCompleted = user.user_metadata?.onboarding_completed;
         if (!onboardingCompleted) {
@@ -83,6 +86,11 @@ const MerchantAuthFlow = () => {
         }
       } else {
         authUser = signInData.user;
+        
+        if (authUser?.user_metadata?.role === 'CLIENTE') {
+          await supabase.auth.signOut();
+          throw new Error('Esta cuenta pertenece a un cliente. Por favor ingresa a través del Portal para Clientes.');
+        }
       }
 
       // 2. Ya autenticados, consumimos la invitación a través de nuestro endpoint
