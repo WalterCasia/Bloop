@@ -145,7 +145,6 @@ const MerchantAuthFlow = () => {
     setError('');
 
     try {
-    try {
       if (isLogin) {
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email,
