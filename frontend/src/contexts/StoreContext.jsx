@@ -10,7 +10,7 @@ export const StoreProvider = ({ children }) => {
   const [activeStore, setActiveStore] = useState(null);
   const [isLoadingStores, setIsLoadingStores] = useState(true);
 
-  useEffect(() => {
+  const fetchStores = React.useCallback(async () => {
     if (!user) {
       setStores([]);
       setActiveStore(null);
@@ -18,33 +18,34 @@ export const StoreProvider = ({ children }) => {
       return;
     }
 
-    const fetchStores = async () => {
-      try {
-        setIsLoadingStores(true);
-        const { data, error } = await supabase
-          .from('stores')
-          .select('*')
-          .eq('owner_id', user.id)
-          .order('created_at', { ascending: true });
+    try {
+      setIsLoadingStores(true);
+      const { data, error } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: true });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        setStores(data || []);
-        
-        if (data && data.length > 0) {
-          const savedStoreId = localStorage.getItem('last_active_store_id');
-          const found = data.find(s => s.id === savedStoreId);
-          setActiveStore(found || data[0]);
-        }
-      } catch (error) {
-        console.error('Error fetching stores:', error);
-      } finally {
-        setIsLoadingStores(false);
+      setStores(data || []);
+      
+      if (data && data.length > 0) {
+        const savedStoreId = localStorage.getItem('last_active_store_id');
+        const found = data.find(s => s.id === savedStoreId);
+        // Only set active store if there isn't one already or if it's initial load
+        setActiveStore(prev => prev ? (data.find(s => s.id === prev.id) || found || data[0]) : (found || data[0]));
       }
-    };
-
-    fetchStores();
+    } catch (error) {
+      console.error('Error fetching stores:', error);
+    } finally {
+      setIsLoadingStores(false);
+    }
   }, [user]);
+
+  useEffect(() => {
+    fetchStores();
+  }, [fetchStores]);
 
   const changeActiveStore = (store) => {
     setActiveStore(store);
@@ -55,7 +56,8 @@ export const StoreProvider = ({ children }) => {
     stores,
     activeStore,
     isLoadingStores,
-    changeActiveStore
+    changeActiveStore,
+    fetchStores
   };
 
   return (
