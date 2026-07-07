@@ -14,7 +14,7 @@ export default async function profileRoutes(fastify, options) {
           ST_X(location::geometry) as lng, 
           ST_Y(location::geometry) as lat
         FROM public.profiles
-        WHERE id = $1 AND role = 'COMERCIO'
+        WHERE id = $1 AND role IN ('COMERCIO', 'OWNER', 'STAFF')
       `;
       const { rows } = await client.query(query, [userId]);
 
@@ -65,12 +65,17 @@ export default async function profileRoutes(fastify, options) {
     try {
       // Validamos que sea comercio (revisando en perfiles o directamente en auth.users si no existe)
       let isMerchant = false;
+      let actualRole = 'COMERCIO';
       const checkProfile = await client.query(`SELECT role FROM public.profiles WHERE id = $1`, [userId]);
       if (checkProfile.rows.length > 0) {
-        isMerchant = checkProfile.rows[0].role === 'COMERCIO';
+        actualRole = checkProfile.rows[0].role;
+        isMerchant = ['COMERCIO', 'OWNER', 'STAFF'].includes(actualRole);
       } else {
         const checkAuth = await client.query(`SELECT raw_user_meta_data->>'role' as role FROM auth.users WHERE id = $1`, [userId]);
-        isMerchant = checkAuth.rows.length > 0 && checkAuth.rows[0].role === 'COMERCIO';
+        if (checkAuth.rows.length > 0) {
+          actualRole = checkAuth.rows[0].role;
+          isMerchant = ['COMERCIO', 'OWNER', 'STAFF'].includes(actualRole);
+        }
       }
 
       if (!isMerchant) {
@@ -81,7 +86,7 @@ export default async function profileRoutes(fastify, options) {
       // Para poder crear el registro si no existe, respetando las validaciones NOT NULL de comercio
       const query = `
         INSERT INTO public.profiles (id, role, full_name, store_name, description, address, location, avatar_url, cover_url)
-        VALUES ($1, 'COMERCIO', $2, $3, $4, $5, ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9)
+        VALUES ($1, $2, $3, $4, $5, $6, ST_SetSRID(ST_MakePoint($7, $8), 4326), $9, $10)
         ON CONFLICT (id) DO UPDATE SET
           store_name = EXCLUDED.store_name,
           description = EXCLUDED.description,
@@ -94,7 +99,7 @@ export default async function profileRoutes(fastify, options) {
       `;
       
       const full_name_fallback = request.user.email || 'Comercio Bloop';
-      const values = [userId, full_name_fallback, store_name, description || null, address, lng, lat, avatar_url || null, cover_url || null];
+      const values = [userId, actualRole, full_name_fallback, store_name, description || null, address, lng, lat, avatar_url || null, cover_url || null];
       
       const { rows } = await client.query(query, values);
 
@@ -241,7 +246,7 @@ export default async function profileRoutes(fastify, options) {
       body: {
         type: 'object',
         properties: {
-          role: { type: 'string', enum: ['CLIENTE', 'COMERCIO'] },
+          role: { type: 'string', enum: ['CLIENTE', 'COMERCIO', 'OWNER', 'STAFF'] },
           full_name: { type: 'string' }
         },
         required: ['role']
@@ -264,8 +269,8 @@ export default async function profileRoutes(fastify, options) {
         RETURNING id, role, full_name
       `;
       
-      const storeName = role === 'COMERCIO' ? 'Pendiente' : null;
-      const address = role === 'COMERCIO' ? 'Pendiente' : null;
+      const storeName = ['COMERCIO', 'OWNER', 'STAFF'].includes(role) ? 'Pendiente' : null;
+      const address = ['COMERCIO', 'OWNER', 'STAFF'].includes(role) ? 'Pendiente' : null;
       
       const { rows } = await client.query(query, [userId, role, defaultName, storeName, address]);
 
