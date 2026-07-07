@@ -28,7 +28,7 @@ export default async function reportsRoutes(fastify, options) {
       const userId = request.user.sub || request.user.id;
       
       const storeCheck = await client.query(
-        'SELECT id FROM public.stores WHERE id = $1 AND merchant_id = $2',
+        'SELECT id FROM public.stores WHERE id = $1 AND owner_id = $2',
         [storeId, userId]
       );
       

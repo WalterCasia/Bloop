@@ -34,7 +34,7 @@ export default async function payoutsRoutes(fastify, options) {
     try {
       // Verificar si la tienda pertenece al usuario
       const { rows } = await client.query(
-        'SELECT id, name, stripe_account_id FROM public.stores WHERE id = $1 AND merchant_id = $2',
+        'SELECT id, name, stripe_account_id FROM public.stores WHERE id = $1 AND owner_id = $2',
         [storeId, userId]
       );
 
