@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
-import { Mail, Lock, KeyRound } from 'lucide-react';
+import { Mail, Lock, KeyRound, UserCircle } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import OnboardingLayout from './OnboardingLayout';
 import MerchantRoleStep from './steps/MerchantRoleStep';
@@ -182,7 +182,7 @@ const MerchantAuthFlow = () => {
   return (
     <OnboardingLayout
       currentStep={step}
-      totalSteps={selectedRole === 'employee' ? 2 : 1}
+      totalSteps={2}
       onBack={handleBack}
       onNext={handleNext}
       canContinue={canContinue()}

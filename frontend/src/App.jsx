@@ -52,7 +52,7 @@ const ProtectedRoute = ({ children, requiredRole, requireOnboarding = false }) =
 
   // 1. Verificación de Autenticación
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // 2. Interceptar a usuarios registrados sin rol (ej. nuevos vía Google OAuth)
