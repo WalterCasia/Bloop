@@ -12,7 +12,12 @@ const LandingPage = () => {
     if (user) {
       const userRole = user.user_metadata?.role;
       if (!userRole) {
-        navigate('/auth/client', { replace: true });
+        const intendedRole = localStorage.getItem('oauth_intended_role');
+        if (intendedRole === 'COMERCIO') {
+          navigate('/auth/merchant', { replace: true });
+        } else {
+          navigate('/auth/client', { replace: true });
+        }
       } else if (userRole === 'COMERCIO') {
         navigate('/merchant/dashboard', { replace: true });
       } else {
