@@ -33,6 +33,7 @@ import MerchantStoreSettings from './components/merchant/MerchantStoreSettings';
 import MerchantPerformanceView from './components/merchant/MerchantPerformanceView';
 import MerchantReviewsView from './components/merchant/MerchantReviewsView';
 import MerchantReportsView from './components/merchant/MerchantReportsView';
+import MerchantPaymentsView from './components/merchant/MerchantPaymentsView';
 import RoleProtectedRoute from './components/merchant/RoleProtectedRoute';
 import MerchantDashboardSelector from './components/merchant/MerchantDashboardSelector';
 
@@ -206,7 +207,7 @@ const App = () => {
             <Route path="/merchant/performance" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantPerformanceView /></RoleProtectedRoute>} />
             <Route path="/merchant/reviews" element={<RoleProtectedRoute allowedRoles={['OWNER', 'STAFF']}><MerchantReviewsView /></RoleProtectedRoute>} />
             <Route path="/merchant/reports" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantReportsView /></RoleProtectedRoute>} />
-            <Route path="/merchant/payments" element={<RoleProtectedRoute allowedRoles={['OWNER']}><UnderConstructionView title="Historial de Pagos" /></RoleProtectedRoute>} />
+            <Route path="/merchant/payments" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantPaymentsView /></RoleProtectedRoute>} />
           </Route>
 
           {/* Ruta Catch-all (Redirección 404 por defecto a Inicio) */}
