@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import { useAuth } from '../contexts/AuthContext';
+import { useStoreContext } from '../contexts/StoreContext';
 
 const DailyStockDashboard = () => {
   const { user } = useAuth();
+  const { activeStore } = useStoreContext();
   
   const [packData, setPackData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -17,11 +19,12 @@ const DailyStockDashboard = () => {
   // Cargar datos iniciales
   useEffect(() => {
     const fetchInitialStock = async () => {
+      if (!activeStore) return;
       try {
         setIsLoading(true);
         // El interceptor de Axios (apiClient) inyecta el token automáticamente.
         // Fastify valida el store_id a partir del JWT.
-        const response = await apiClient.get('/api/merchant/stock');
+        const response = await apiClient.get(`/api/merchant/stock?storeId=${activeStore.id}`);
         
         if (response.data.status === 'success') {
           setPackData(response.data.pack);
@@ -43,20 +46,22 @@ const DailyStockDashboard = () => {
       }
     };
 
-    if (user) {
+    if (user && activeStore) {
       fetchInitialStock();
     }
-  }, [user]);
+  }, [user, activeStore]);
 
   // Sincronización asíncrona (PATCH)
   const syncStockWithBackend = async (newStock, newStatus) => {
+    if (!activeStore) return;
     try {
       setIsUpdating(true);
       
       await apiClient.patch('/api/merchant/stock', {
         packId: packData.id,
         availableStock: newStock,
-        status: newStatus
+        status: newStatus,
+        storeId: activeStore.id
       });
 
       // Si tiene éxito, validamos que este es el nuevo estado real
