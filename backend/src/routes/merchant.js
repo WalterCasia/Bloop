@@ -44,6 +44,59 @@ export default async function merchantRoutes(fastify, options) {
     }
   });
 
+  // Endpoint para eliminar una sucursal (Soft Delete)
+  fastify.delete('/api/merchant/stores/:id', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' }
+        },
+        required: ['id']
+      }
+    }
+  }, async (request, reply) => {
+    const owner_id = request.user.sub || request.user.id;
+    const store_id = request.params.id;
+    
+    const client = await fastify.pg.connect();
+    try {
+      await client.query('BEGIN');
+
+      // 1. Verificar propiedad y actualizar estado (Soft Delete)
+      const updateStore = await client.query(`
+        UPDATE public.stores 
+        SET is_active = false, updated_at = NOW() 
+        WHERE id = $1 AND owner_id = $2 
+        RETURNING id
+      `, [store_id, owner_id]);
+
+      if (updateStore.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return reply.code(403).send({ status: 'error', message: 'No tienes permisos para eliminar esta sucursal o no existe.' });
+      }
+
+      // 2. Eliminar packs activos asociados (Cascade lógico)
+      await client.query(`
+        DELETE FROM public.surprise_packs WHERE store_id = $1
+      `, [store_id]);
+
+      await client.query('COMMIT');
+      
+      return reply.code(200).send({
+        status: 'success',
+        message: 'Sucursal eliminada correctamente.'
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error', message: 'No se pudo eliminar la sucursal.' });
+    } finally {
+      client.release();
+    }
+  });
+
   // Endpoint para generar un código de invitación (Multi-Store)
   fastify.post('/api/merchant/invitations', {
     onRequest: [fastify.authenticate],

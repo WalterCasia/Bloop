@@ -3,14 +3,16 @@ import Map, { Marker, NavigationControl } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useStoreContext } from '../../contexts/StoreContext';
 import apiClient from '../../api/apiClient';
-import { MapPin, Save, Power, PowerOff, Clock, DollarSign, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { MapPin, Save, Power, PowerOff, Clock, DollarSign, AlertCircle, Trash2 } from 'lucide-react';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const DEFAULT_LAT = 14.6349;
 const DEFAULT_LNG = -90.5069;
 
 const MerchantStoreSettings = () => {
-  const { activeStore, isLoadingStores } = useStoreContext();
+  const { activeStore, isLoadingStores, fetchStores } = useStoreContext();
+  const navigate = useNavigate();
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -90,8 +92,26 @@ const MerchantStoreSettings = () => {
       setMessage({ type: 'success', text: 'Configuración guardada exitosamente.' });
     } catch (err) {
       console.error(err);
-      setMessage({ type: 'error', text: 'Hubo un error al guardar los cambios.' });
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Ocurrió un error al guardar' });
     } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteStore = async () => {
+    const isConfirmed = window.confirm("¿Estás absolutamente seguro de querer eliminar esta sucursal? Esta acción detendrá todas las ventas activas.");
+    if (!isConfirmed) return;
+
+    try {
+      setIsSaving(true);
+      await apiClient.delete(`/api/merchant/stores/${activeStore.id}`);
+      
+      // Update global context and navigate away
+      await fetchStores();
+      navigate('/merchant/dashboard', { replace: true });
+    } catch (err) {
+      console.error("Error deleting store:", err);
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Error al eliminar la sucursal' });
       setIsSaving(false);
     }
   };
@@ -218,6 +238,20 @@ const MerchantStoreSettings = () => {
               </>
             )}
           </button>
+
+          {/* ZONA DE PELIGRO */}
+          <div className="mt-8 pt-6 border-t border-red-100">
+            <h3 className="text-sm font-black text-red-600 mb-2 uppercase tracking-wide">Zona de Peligro</h3>
+            <p className="text-xs text-gray-500 font-medium mb-4">Eliminar esta sucursal detendrá inmediatamente cualquier venta en curso y la removerá de tu panel. El historial de compras de tus clientes se mantendrá intacto.</p>
+            <button
+              type="button"
+              onClick={handleDeleteStore}
+              disabled={isSaving}
+              className="w-full bg-red-50 text-red-600 border border-red-200 rounded-xl py-3 font-bold text-sm flex items-center justify-center gap-2 hover:bg-red-100 transition-colors disabled:opacity-50"
+            >
+              <Trash2 size={16} /> Eliminar Sucursal
+            </button>
+          </div>
         </div>
 
         {/* COLUMNA DERECHA: Mapa Mapbox */}

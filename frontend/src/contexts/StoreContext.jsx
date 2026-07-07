@@ -24,6 +24,7 @@ export const StoreProvider = ({ children }) => {
         .from('stores')
         .select('*')
         .eq('owner_id', user.id)
+        .eq('is_active', true)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
