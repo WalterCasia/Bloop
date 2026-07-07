@@ -14,7 +14,7 @@ import DailyStockDashboard from './components/DailyStockDashboard';
 import MerchantProfile from './components/merchant/MerchantProfile';
 import MerchantStats from './components/merchant/MerchantStats';
 import MerchantEmployeesView from './components/merchant/MerchantEmployeesView';
-import MerchantNewBranchView from './components/merchant/MerchantNewBranchView';
+import MerchantBranchCreator from './components/merchant/MerchantBranchCreator';
 import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
 import SignupPage from './components/SignupPage';
@@ -181,7 +181,7 @@ const App = () => {
             <Route path="/merchant/profile" element={<MerchantProfile />} />
             <Route path="/merchant/employees" element={<MerchantEmployeesView />} />
             <Route path="/merchant/stats" element={<MerchantStats />} />
-            <Route path="/merchant/branch/new" element={<MerchantNewBranchView />} />
+            <Route path="/merchant/branch/new" element={<MerchantBranchCreator />} />
             
             {/* Rutas Completadas */}
             <Route path="/merchant/orders" element={<MerchantOrdersView />} />
