@@ -22,7 +22,6 @@ import EmployeeJoinView from './components/EmployeeJoinView';
 import ClientAuthFlow from './components/auth/ClientAuthFlow';
 import MerchantAuthFlow from './components/auth/MerchantAuthFlow';
 import NavigationLayout from './components/NavigationLayout';
-import RoleSelectionOnboarding from './components/RoleSelectionOnboarding';
 import ClientOnboardingWizard from './components/ClientOnboardingWizard';
 import ClientPreferencesView from './components/ClientPreferencesView';
 import MerchantOnboardingWizard from './components/MerchantOnboardingWizard';
@@ -60,7 +59,7 @@ const ProtectedRoute = ({ children, requiredRole, requireOnboarding = false }) =
   const userRole = user.user_metadata?.role;
   
   if (!userRole) {
-    return <Navigate to="/onboarding" replace />;
+    return <Navigate to="/auth/client" replace />;
   }
 
   // 3. Verificación Estricta de Autorización (RBAC)
@@ -100,12 +99,6 @@ const App = () => {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/join" element={<EmployeeJoinView />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
-          <Route 
-            path="/onboarding" 
-            element={
-              <RoleSelectionOnboarding />
-            } 
-          />
 
           {/* =======================
               Flujos Privados (App Shell)

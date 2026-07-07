@@ -12,7 +12,7 @@ const LandingPage = () => {
     if (user) {
       const userRole = user.user_metadata?.role;
       if (!userRole) {
-        navigate('/onboarding', { replace: true });
+        navigate('/auth/client', { replace: true });
       } else if (userRole === 'COMERCIO') {
         navigate('/merchant/dashboard', { replace: true });
       } else {
