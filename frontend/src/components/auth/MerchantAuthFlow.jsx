@@ -23,7 +23,7 @@ const MerchantAuthFlow = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (user && step === 1) {
+    if (user) {
       const role = user.user_metadata?.role;
       if (!role) {
         // Asignar rol COMERCIO para Google Auth sin rol previo
@@ -43,14 +43,14 @@ const MerchantAuthFlow = () => {
         }
       }
     }
-  }, [user, navigate, step]);
+  }, [user, navigate]);
 
   const assignMerchantRole = async () => {
     try {
       await supabase.auth.updateUser({
         data: { role: 'COMERCIO', onboarding_completed: false }
       });
-      navigate('/onboarding/merchant', { replace: true });
+      // El navegador será redirigido automáticamente por el useEffect una vez que se actualice la sesión.
     } catch (err) {
       console.error("Error setting merchant role:", err);
     }
