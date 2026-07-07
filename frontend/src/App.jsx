@@ -24,7 +24,7 @@ import MerchantAuthFlow from './components/auth/MerchantAuthFlow';
 import NavigationLayout from './components/NavigationLayout';
 import ClientOnboardingWizard from './components/ClientOnboardingWizard';
 import ClientPreferencesView from './components/ClientPreferencesView';
-import MerchantOnboardingWizard from './components/MerchantOnboardingWizard';
+import MerchantStoreWizard from './components/auth/MerchantStoreWizard';
 import SurprisePackTemplateEditor from './components/SurprisePackTemplateEditor';
 import MerchantDashboardLayout from './components/merchant/MerchantDashboardLayout';
 import UnderConstructionView from './components/merchant/UnderConstructionView';
@@ -168,7 +168,7 @@ const App = () => {
               path="/onboarding/merchant" 
               element={
                 <ProtectedRoute requiredRole="COMERCIO">
-                  <MerchantOnboardingWizard />
+                  <MerchantStoreWizard />
                 </ProtectedRoute>
               } 
             />
