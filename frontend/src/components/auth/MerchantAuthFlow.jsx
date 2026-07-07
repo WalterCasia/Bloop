@@ -187,7 +187,7 @@ const MerchantAuthFlow = () => {
         try {
           const { session } = await supabase.auth.getSession();
           if (session) {
-            await apiClient.post('/api/merchant/invitations/accept', 
+            await apiClient.post('/api/merchant/invitations/redeem', 
               { code: inviteCode.toUpperCase() },
               { headers: { Authorization: `Bearer ${session.access_token}` } }
             );

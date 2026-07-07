@@ -182,9 +182,9 @@ export default async function merchantRoutes(fastify, options) {
       // 2. Actualizar el perfil del usuario a EMPLOYEE y asignarlo a la tienda
       const updateProfileQuery = `
         INSERT INTO public.profiles (id, role, merchant_role, assigned_store_id, full_name)
-        VALUES ($1, 'COMERCIO', 'EMPLOYEE', $2, 'Empleado Bloop')
+        VALUES ($1, 'STAFF', 'EMPLOYEE', $2, 'Empleado Bloop')
         ON CONFLICT (id) DO UPDATE SET
-          role = 'COMERCIO',
+          role = 'STAFF',
           merchant_role = 'EMPLOYEE',
           assigned_store_id = EXCLUDED.assigned_store_id,
           updated_at = NOW()
