@@ -226,7 +226,7 @@ export default async function merchantRoutes(fastify, options) {
       }
     }
   }, async (request, reply) => {
-    const { qr_code } = request.body;
+    const { qr_code, storeId: payloadStoreId } = request.body;
     
     let decodedQR;
     try {
@@ -251,14 +251,26 @@ export default async function merchantRoutes(fastify, options) {
     
     try {
       const userId = request.user.sub || request.user.id;
-      let actualStoreId = null;
-      const storeRes = await client.query(`SELECT id FROM public.stores WHERE owner_id = $1 LIMIT 1`, [userId]);
-      if (storeRes.rows.length > 0) {
-        actualStoreId = storeRes.rows[0].id;
+      let actualStoreId = payloadStoreId;
+
+      if (!actualStoreId) {
+        const storeRes = await client.query(`SELECT id FROM public.stores WHERE owner_id = $1 LIMIT 1`, [userId]);
+        if (storeRes.rows.length > 0) {
+          actualStoreId = storeRes.rows[0].id;
+        } else {
+          const profileRes = await client.query(`SELECT assigned_store_id FROM public.profiles WHERE id = $1`, [userId]);
+          if (profileRes.rows.length > 0 && profileRes.rows[0].assigned_store_id) {
+            actualStoreId = profileRes.rows[0].assigned_store_id;
+          }
+        }
       } else {
-        const profileRes = await client.query(`SELECT assigned_store_id FROM public.profiles WHERE id = $1`, [userId]);
-        if (profileRes.rows.length > 0 && profileRes.rows[0].assigned_store_id) {
-          actualStoreId = profileRes.rows[0].assigned_store_id;
+        // Validar propiedad
+        const storeCheck = await client.query(`SELECT id FROM public.stores WHERE id = $1 AND owner_id = $2`, [actualStoreId, userId]);
+        if (storeCheck.rowCount === 0) {
+          const profileCheck = await client.query(`SELECT id FROM public.profiles WHERE id = $1 AND assigned_store_id = $2`, [userId, actualStoreId]);
+          if (profileCheck.rowCount === 0) {
+             return reply.code(403).send({ error: 'Forbidden', message: 'No tienes acceso a esta sucursal.' });
+          }
         }
       }
 
@@ -542,19 +554,31 @@ export default async function merchantRoutes(fastify, options) {
       }
     }
   }, async (request, reply) => {
-    const { packId, availableStock, status } = request.body;
+    const { packId, availableStock, status, storeId: payloadStoreId } = request.body;
     
     const client = await fastify.pg.connect();
     try {
       const userId = request.user.sub || request.user.id;
-      let actualStoreId = null;
-      const storeRes = await client.query(`SELECT id FROM public.stores WHERE owner_id = $1 LIMIT 1`, [userId]);
-      if (storeRes.rows.length > 0) {
-        actualStoreId = storeRes.rows[0].id;
+      let actualStoreId = payloadStoreId;
+
+      if (!actualStoreId) {
+        const storeRes = await client.query(`SELECT id FROM public.stores WHERE owner_id = $1 LIMIT 1`, [userId]);
+        if (storeRes.rows.length > 0) {
+          actualStoreId = storeRes.rows[0].id;
+        } else {
+          const profileRes = await client.query(`SELECT assigned_store_id FROM public.profiles WHERE id = $1`, [userId]);
+          if (profileRes.rows.length > 0 && profileRes.rows[0].assigned_store_id) {
+            actualStoreId = profileRes.rows[0].assigned_store_id;
+          }
+        }
       } else {
-        const profileRes = await client.query(`SELECT assigned_store_id FROM public.profiles WHERE id = $1`, [userId]);
-        if (profileRes.rows.length > 0 && profileRes.rows[0].assigned_store_id) {
-          actualStoreId = profileRes.rows[0].assigned_store_id;
+        // Validar propiedad
+        const storeCheck = await client.query(`SELECT id FROM public.stores WHERE id = $1 AND owner_id = $2`, [actualStoreId, userId]);
+        if (storeCheck.rowCount === 0) {
+          const profileCheck = await client.query(`SELECT id FROM public.profiles WHERE id = $1 AND assigned_store_id = $2`, [userId, actualStoreId]);
+          if (profileCheck.rowCount === 0) {
+             return reply.code(403).send({ error: 'Forbidden', message: 'No tienes acceso a esta sucursal.' });
+          }
         }
       }
 
@@ -637,7 +661,7 @@ export default async function merchantRoutes(fastify, options) {
       }
     }
   }, async (request, reply) => {
-    const { title, originalPrice, salePrice, startTime, endTime, imageBase64 } = request.body;
+    const { title, originalPrice, salePrice, startTime, endTime, imageBase64, storeId: payloadStoreId } = request.body;
     
     // Construir timestamps para la recogida (hoy a las startTime y endTime)
     const today = new Date().toISOString().split('T')[0];
@@ -661,14 +685,26 @@ export default async function merchantRoutes(fastify, options) {
     const client = await fastify.pg.connect();
     try {
       const userId = request.user.sub || request.user.id;
-      let actualStoreId = null;
-      const storeRes = await client.query(`SELECT id FROM public.stores WHERE owner_id = $1 LIMIT 1`, [userId]);
-      if (storeRes.rows.length > 0) {
-        actualStoreId = storeRes.rows[0].id;
+      let actualStoreId = payloadStoreId;
+
+      if (!actualStoreId) {
+        const storeRes = await client.query(`SELECT id FROM public.stores WHERE owner_id = $1 LIMIT 1`, [userId]);
+        if (storeRes.rows.length > 0) {
+          actualStoreId = storeRes.rows[0].id;
+        } else {
+          const profileRes = await client.query(`SELECT assigned_store_id FROM public.profiles WHERE id = $1`, [userId]);
+          if (profileRes.rows.length > 0 && profileRes.rows[0].assigned_store_id) {
+            actualStoreId = profileRes.rows[0].assigned_store_id;
+          }
+        }
       } else {
-        const profileRes = await client.query(`SELECT assigned_store_id FROM public.profiles WHERE id = $1`, [userId]);
-        if (profileRes.rows.length > 0 && profileRes.rows[0].assigned_store_id) {
-          actualStoreId = profileRes.rows[0].assigned_store_id;
+        // Validar propiedad de la sucursal proporcionada
+        const storeCheck = await client.query(`SELECT id FROM public.stores WHERE id = $1 AND owner_id = $2`, [actualStoreId, userId]);
+        if (storeCheck.rowCount === 0) {
+          const profileCheck = await client.query(`SELECT id FROM public.profiles WHERE id = $1 AND assigned_store_id = $2`, [userId, actualStoreId]);
+          if (profileCheck.rowCount === 0) {
+             return reply.code(403).send({ error: 'Forbidden', message: 'No tienes acceso a esta sucursal.' });
+          }
         }
       }
       

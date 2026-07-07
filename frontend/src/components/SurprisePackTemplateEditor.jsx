@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/apiClient';
+import { useStoreContext } from '../contexts/StoreContext';
 
 /**
  * SurprisePackTemplateEditor
@@ -8,6 +9,7 @@ import apiClient from '../api/apiClient';
  * Incluye anclaje financiero automático y validación de ventanas de recogida.
  */
 const SurprisePackTemplateEditor = () => {
+  const { activeStore } = useStoreContext();
   const [formData, setFormData] = useState({
     title: '',
     category: '',
@@ -86,7 +88,8 @@ const SurprisePackTemplateEditor = () => {
       salePrice: parseFloat(salePrice),
       startTime: formData.startTime,
       endTime: formData.endTime,
-      imageBase64: imagePreview // Send base64 directly
+      imageBase64: imagePreview, // Send base64 directly
+      storeId: activeStore?.id
     };
     
     setIsSubmitting(true);

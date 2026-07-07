@@ -167,6 +167,7 @@ const MerchantMainDashboard = () => {
         <QRScannerModal 
           onClose={() => setShowScanner(false)} 
           onSuccess={handleScannerSuccess} 
+          activeStore={activeStore}
         />
       )}
       {errorModal && (

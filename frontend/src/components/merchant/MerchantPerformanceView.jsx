@@ -15,7 +15,7 @@ const MerchantPerformanceView = () => {
     if (!activeStore) return;
     try {
       setIsLoading(true);
-      const res = await apiClient.get('/api/merchant/stats');
+      const res = await apiClient.get(`/api/merchant/stats?storeId=${activeStore.id}`);
       setStats(res.data);
     } catch (err) {
       console.error("Error fetching stats:", err);

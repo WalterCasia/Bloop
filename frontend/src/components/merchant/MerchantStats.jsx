@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import apiClient from '../../api/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
+import { useStoreContext } from '../../contexts/StoreContext';
 
 const MerchantStats = () => {
   const { user } = useAuth();
+  const { activeStore } = useStoreContext();
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,7 +15,7 @@ const MerchantStats = () => {
     const fetchStats = async () => {
       try {
         setIsLoading(true);
-        const response = await apiClient.get('/api/merchant/stats');
+        const response = await apiClient.get(`/api/merchant/stats?storeId=${activeStore.id}`);
         if (response.data.status === 'success') {
           // Revertimos el array porque el backend lo genera del más antiguo al más nuevo si iteramos desde 6 hasta 0?
           // Revisemos: for (let i = 6; i >= 0; i--) => 6 días atrás primero, luego 5... hasta hoy (0).
@@ -27,10 +29,10 @@ const MerchantStats = () => {
       }
     };
 
-    if (user) {
+    if (user && activeStore) {
       fetchStats();
     }
-  }, [user]);
+  }, [user, activeStore]);
 
   if (isLoading) {
     return (

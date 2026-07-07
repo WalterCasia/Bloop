@@ -3,10 +3,38 @@ export default async function statsRoutes(fastify, options) {
   fastify.get('/api/merchant/stats', {
     onRequest: [fastify.authenticate]
   }, async (request, reply) => {
-    const storeId = request.user.sub || request.user.id;
+    const queryStoreId = request.query.storeId;
     const client = await fastify.pg.connect();
 
     try {
+      const userId = request.user.sub || request.user.id;
+      let actualStoreId = queryStoreId;
+
+      if (!actualStoreId) {
+        const storeRes = await client.query(`SELECT id FROM public.stores WHERE owner_id = $1 LIMIT 1`, [userId]);
+        if (storeRes.rows.length > 0) {
+          actualStoreId = storeRes.rows[0].id;
+        } else {
+          const profileRes = await client.query(`SELECT assigned_store_id FROM public.profiles WHERE id = $1`, [userId]);
+          if (profileRes.rows.length > 0 && profileRes.rows[0].assigned_store_id) {
+            actualStoreId = profileRes.rows[0].assigned_store_id;
+          }
+        }
+      } else {
+        // Validar propiedad
+        const storeCheck = await client.query(`SELECT id FROM public.stores WHERE id = $1 AND owner_id = $2`, [actualStoreId, userId]);
+        if (storeCheck.rowCount === 0) {
+          const profileCheck = await client.query(`SELECT id FROM public.profiles WHERE id = $1 AND assigned_store_id = $2`, [userId, actualStoreId]);
+          if (profileCheck.rowCount === 0) {
+             return reply.code(403).send({ error: 'Forbidden', message: 'No tienes acceso a esta sucursal.' });
+          }
+        }
+      }
+
+      if (!actualStoreId) {
+        return reply.code(404).send({ status: 'error', message: 'No tienes una sucursal asignada.' });
+      }
+
       // 1. Calcular packs vendidos y ganancias agrupadas por fecha (Últimos 7 días)
       const salesQuery = `
         SELECT 
@@ -19,7 +47,7 @@ export default async function statsRoutes(fastify, options) {
           AND created_at >= CURRENT_DATE - INTERVAL '6 days'
         GROUP BY DATE(created_at)
       `;
-      const { rows: salesRows } = await client.query(salesQuery, [storeId]);
+      const { rows: salesRows } = await client.query(salesQuery, [actualStoreId]);
 
       // 2. Calcular packs desperdiciados (Últimos 7 días)
       const wasteQuery = `
@@ -33,7 +61,7 @@ export default async function statsRoutes(fastify, options) {
           AND pickup_end_time >= CURRENT_DATE - INTERVAL '6 days'
         GROUP BY DATE(pickup_end_time)
       `;
-      const { rows: wasteRows } = await client.query(wasteQuery, [storeId]);
+      const { rows: wasteRows } = await client.query(wasteQuery, [actualStoreId]);
 
       // 3. Generar la estructura continua de 7 días (incluyendo días con ceros)
       const today = new Date();

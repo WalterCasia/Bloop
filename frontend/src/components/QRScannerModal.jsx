@@ -7,7 +7,7 @@ import apiClient from '../api/apiClient';
  * Activa la cámara trasera para escanear tickets de clientes.
  * Requiere la instalación de: npm install html5-qrcode
  */
-const QRScannerModal = ({ onClose, onSuccess }) => {
+const QRScannerModal = ({ onClose, onSuccess, activeStore }) => {
   const [manualCode, setManualCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -61,7 +61,10 @@ const QRScannerModal = ({ onClose, onSuccess }) => {
     }
 
     try {
-      const response = await apiClient.post('/api/merchant/orders/validate', { token });
+      const response = await apiClient.post('/api/merchant/orders/validate', { 
+        qr_code: token,
+        storeId: activeStore?.id 
+      });
       if (response.data.status === 'success') {
         onSuccess(response.data.data);
       }
