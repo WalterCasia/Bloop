@@ -84,15 +84,7 @@ const NavigationLayout = () => {
     { label: 'Perfil', path: '/profile', icon: Icons.profile },
   ];
 
-  const merchantLinks = [
-    { label: 'Escáner QR', path: '/merchant/dashboard', icon: Icons.scanner },
-    { label: 'Inventario', path: '/merchant/daily-stock', icon: Icons.inventory },
-    { label: 'Empleados', path: '/merchant/employees', icon: Icons.employees },
-    { label: 'Perfil', path: '/merchant/profile', icon: Icons.profile },
-    { label: 'Estadísticas', path: '/merchant/stats', icon: Icons.stats },
-  ];
-
-  const links = role === 'COMERCIO' ? merchantLinks : clientLinks;
+  const links = clientLinks;
 
   const NavItem = ({ label, path, icon }) => (
     <NavLink
@@ -111,40 +103,12 @@ const NavigationLayout = () => {
   );
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-gray-50 relative">
+    <div className="flex flex-col min-h-screen bg-gray-50 relative">
       
-      {/* =========================================
-          Sidebar para Escritorio (md+) (Solo para COMERCIO)
-          ========================================= */}
-      {role === 'COMERCIO' && (
-        <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-white border-r border-gray-200 shadow-sm z-[9999]">
-        <div className="p-6 flex items-center justify-center border-b border-gray-100">
-          <h1 className="text-2xl font-black text-green-600 tracking-tight">Bloop.</h1>
-        </div>
-        
-        <nav className="flex-1 mt-6 flex flex-col gap-2">
-          {links.map((link) => (
-            <NavItem key={link.path} {...link} />
-          ))}
-        </nav>
-        
-        {/* Botón Logout (Escritorio) al final */}
-        <div className="p-4 border-t border-gray-100">
-          <button 
-            onClick={signOut}
-            className="flex items-center justify-start gap-3 w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-semibold"
-          >
-            <div className="w-5 h-5">{Icons.logout}</div>
-            <span>Cerrar Sesión</span>
-          </button>
-        </div>
-      </aside>
-      )}
-
       {/* =========================================
           Contenido Principal
           ========================================= */}
-      <main className={`flex-1 ${role === 'COMERCIO' ? 'md:ml-64' : ''} pb-16 md:pb-0 w-full relative h-screen overflow-y-auto`}>
+      <main className="flex-1 pb-16 w-full relative h-screen overflow-y-auto">
         <Outlet />
       </main>
 
@@ -169,24 +133,26 @@ const NavigationLayout = () => {
       )}
 
       {/* =========================================
-          Barra de Navegación Inferior Móvil
+          Barra de Navegación Inferior Móvil (Solo CLIENTE)
           ========================================= */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 z-[9999] pb-safe">
-        {links.map((link) => (
-          <NavItem key={link.path} {...link} />
-        ))}
-        
-        {/* Tab de Submenú Móvil */}
-        <button 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className={`flex flex-col items-center justify-center gap-1 p-2 w-full transition-colors duration-200 ${
-            isMobileMenuOpen ? 'text-green-600' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
-          }`}
-        >
-          <div className="w-6 h-6">{Icons.menu}</div>
-          <span className="text-[10px] font-semibold">Más</span>
-        </button>
-      </nav>
+      {role === 'CLIENTE' && (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 z-[9999] pb-safe">
+          {links.map((link) => (
+            <NavItem key={link.path} {...link} />
+          ))}
+          
+          {/* Tab de Submenú Móvil */}
+          <button 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className={`flex flex-col items-center justify-center gap-1 p-2 w-full transition-colors duration-200 ${
+              isMobileMenuOpen ? 'text-green-600' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+            <div className="w-6 h-6">{Icons.menu}</div>
+            <span className="text-[10px] font-semibold">Más</span>
+          </button>
+        </nav>
+      )}
 
     </div>
   );

@@ -169,37 +169,29 @@ const App = () => {
                 </ProtectedRoute>
               } 
             />
-
-            <Route 
-              path="/merchant/branch/new" 
-              element={
-                <ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}>
-                  <MerchantNewBranchView />
-                </ProtectedRoute>
-              } 
-            />
+          </Route>
 
             {/* =======================
                 Layout Exclusivo COMERCIO (Uber Eats Style)
                ======================= */}
-            <Route element={<ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}><MerchantDashboardLayout /></ProtectedRoute>}>
-              <Route path="/merchant/dashboard" element={<MerchantMainDashboard />} />
-              <Route path="/merchant/daily-stock" element={<DailyStockDashboard />} />
-              <Route path="/merchant/create-pack" element={<SurprisePackTemplateEditor />} />
-              <Route path="/merchant/profile" element={<MerchantProfile />} />
-              <Route path="/merchant/employees" element={<MerchantEmployeesView />} />
-              <Route path="/merchant/stats" element={<MerchantStats />} />
-              
-              {/* Rutas Completadas */}
-              <Route path="/merchant/orders" element={<MerchantOrdersView />} />
-              <Route path="/merchant/settings" element={<MerchantStoreSettings />} />
-              <Route path="/merchant/performance" element={<MerchantPerformanceView />} />
-              
-              {/* Rutas en Construcción (Fases Posteriores) */}
-              <Route path="/merchant/reviews" element={<UnderConstructionView title="Reseñas de Clientes" />} />
-              <Route path="/merchant/reports" element={<UnderConstructionView title="Reportes Analíticos" />} />
-              <Route path="/merchant/payments" element={<UnderConstructionView title="Historial de Pagos" />} />
-            </Route>
+          <Route element={<ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}><MerchantDashboardLayout /></ProtectedRoute>}>
+            <Route path="/merchant/dashboard" element={<MerchantMainDashboard />} />
+            <Route path="/merchant/daily-stock" element={<DailyStockDashboard />} />
+            <Route path="/merchant/create-pack" element={<SurprisePackTemplateEditor />} />
+            <Route path="/merchant/profile" element={<MerchantProfile />} />
+            <Route path="/merchant/employees" element={<MerchantEmployeesView />} />
+            <Route path="/merchant/stats" element={<MerchantStats />} />
+            <Route path="/merchant/branch/new" element={<MerchantNewBranchView />} />
+            
+            {/* Rutas Completadas */}
+            <Route path="/merchant/orders" element={<MerchantOrdersView />} />
+            <Route path="/merchant/settings" element={<MerchantStoreSettings />} />
+            <Route path="/merchant/performance" element={<MerchantPerformanceView />} />
+            
+            {/* Rutas en Construcción (Fases Posteriores) */}
+            <Route path="/merchant/reviews" element={<UnderConstructionView title="Reseñas de Clientes" />} />
+            <Route path="/merchant/reports" element={<UnderConstructionView title="Reportes Analíticos" />} />
+            <Route path="/merchant/payments" element={<UnderConstructionView title="Historial de Pagos" />} />
           </Route>
 
           {/* Ruta Catch-all (Redirección 404 por defecto a Inicio) */}
