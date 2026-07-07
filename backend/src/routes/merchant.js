@@ -665,34 +665,40 @@ export default async function merchantRoutes(fastify, options) {
           title: { type: 'string' },
           originalPrice: { type: 'number' },
           salePrice: { type: 'number' },
+          pickupDate: { type: 'string' }, // New field
           startTime: { type: 'string' },
           endTime: { type: 'string' },
-          imageBase64: { type: 'string' }
+          imagesBase64: { type: 'array', items: { type: 'string' } } // New field
         },
-        required: ['title', 'originalPrice', 'salePrice', 'startTime', 'endTime']
+        required: ['title', 'originalPrice', 'salePrice', 'pickupDate', 'startTime', 'endTime']
       }
     }
   }, async (request, reply) => {
-    const { title, originalPrice, salePrice, startTime, endTime, imageBase64, storeId: payloadStoreId } = request.body;
+    const { title, originalPrice, salePrice, pickupDate, startTime, endTime, imagesBase64, storeId: payloadStoreId } = request.body;
     
-    // Construir timestamps para la recogida (hoy a las startTime y endTime)
-    const today = new Date().toISOString().split('T')[0];
-    const pickupStart = `${today} ${startTime}:00-06`; // Asumimos zona horaria UTC-6 para Centroamérica, ideal para el MVP
-    const pickupEnd = `${today} ${endTime}:00-06`;
+    // Construir timestamps para la recogida
+    const pickupStart = `${pickupDate} ${startTime}:00-06`; // Asumimos zona horaria UTC-6 para Centroamérica, ideal para el MVP
+    const pickupEnd = `${pickupDate} ${endTime}:00-06`;
 
-    let imageUrl = null;
+    let imageUrlsArray = [];
     try {
-      if (imageBase64) {
-        const uploadResponse = await fastify.cloudinary.uploader.upload(imageBase64, {
-          folder: 'bloop_packs',
-          resource_type: 'image'
-        });
-        imageUrl = uploadResponse.secure_url;
+      if (imagesBase64 && imagesBase64.length > 0) {
+        // Subir imágenes concurrentemente
+        const uploadPromises = imagesBase64.map(base64 => 
+          fastify.cloudinary.uploader.upload(base64, {
+            folder: 'bloop_packs',
+            resource_type: 'image'
+          })
+        );
+        const uploadResponses = await Promise.all(uploadPromises);
+        imageUrlsArray = uploadResponses.map(res => res.secure_url);
       }
     } catch (err) {
       fastify.log.error('Error uploading image to Cloudinary:', err);
-      // We continue even if image upload fails, or we could throw. Let's continue with null.
+      // We continue even if image upload fails.
     }
+    
+    const imageUrl = imageUrlsArray.length > 0 ? imageUrlsArray.join(',') : null;
 
     const client = await fastify.pg.connect();
     try {

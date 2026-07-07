@@ -2,12 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import { useStoreContext } from '../contexts/StoreContext';
+import { Package, Clock, Calendar, Info, Image as ImageIcon, CheckCircle, AlertCircle, X, UploadCloud, Tag } from 'lucide-react';
 
-/**
- * SurprisePackTemplateEditor
- * Componente B2B para crear plantillas de "Packs Sorpresa"
- * Incluye anclaje financiero automático y validación de ventanas de recogida.
- */
 const SurprisePackTemplateEditor = () => {
   const { activeStore } = useStoreContext();
   const [formData, setFormData] = useState({
@@ -16,6 +12,7 @@ const SurprisePackTemplateEditor = () => {
     description: '',
     instructions: '',
     originalPrice: '',
+    pickupDate: new Date().toISOString().split('T')[0],
     startTime: '',
     endTime: ''
   });
@@ -23,14 +20,17 @@ const SurprisePackTemplateEditor = () => {
   const [discountRate, setDiscountRate] = useState(66);
   const [salePrice, setSalePrice] = useState('0.00');
   const [timeError, setTimeError] = useState('');
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  
+  // Array of image base64 strings
+  const [imagesPreview, setImagesPreview] = useState([]);
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
 
   // Efecto de Anclaje Financiero Automático
   useEffect(() => {
     const original = parseFloat(formData.originalPrice);
     if (!isNaN(original) && original > 0) {
-      // Calculamos el precio de venta bloqueado
       const calculatedSalePrice = original * (1 - discountRate / 100);
       setSalePrice(calculatedSalePrice.toFixed(2));
     } else {
@@ -42,7 +42,7 @@ const SurprisePackTemplateEditor = () => {
   useEffect(() => {
     if (formData.startTime && formData.endTime) {
       if (formData.startTime >= formData.endTime) {
-        setTimeError('Aviso: La recogida cruzará la medianoche y terminará al día siguiente.');
+        setTimeError('La recogida terminará al día siguiente (cruza la medianoche).');
       } else {
         setTimeError('');
       }
@@ -58,37 +58,47 @@ const SurprisePackTemplateEditor = () => {
   };
 
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        alert('La imagen no puede pesar más de 5MB');
+    const files = Array.from(e.target.files);
+    
+    // Check if total exceeds 3
+    if (imagesPreview.length + files.length > 3) {
+      alert('Solo puedes subir un máximo de 3 imágenes.');
+      return;
+    }
+
+    files.forEach(file => {
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`La imagen ${file.name} pesa más de 5MB`);
         return;
       }
-      setImageFile(file);
-      
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result);
+        setImagesPreview(prev => [...prev, reader.result]);
       };
       reader.readAsDataURL(file);
-    }
+    });
   };
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigate = useNavigate();
+  const removeImage = (indexToRemove) => {
+    setImagesPreview(prev => prev.filter((_, idx) => idx !== indexToRemove));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (timeError || isSubmitting) return;
+    if (imagesPreview.length === 0) {
+      alert('Debes subir al menos 1 imagen.');
+      return;
+    }
+    if (isSubmitting) return;
     
     const payload = {
       title: formData.title,
-      // category, description, instructions are currently not stored in DB, but we send them just in case
       originalPrice: parseFloat(formData.originalPrice),
       salePrice: parseFloat(salePrice),
+      pickupDate: formData.pickupDate,
       startTime: formData.startTime,
       endTime: formData.endTime,
-      imageBase64: imagePreview, // Send base64 directly
+      imagesBase64: imagesPreview,
       storeId: activeStore?.id
     };
     
@@ -96,7 +106,7 @@ const SurprisePackTemplateEditor = () => {
     try {
       const response = await apiClient.post('/api/merchant/packs/template', payload);
       if (response.data.status === 'success') {
-        alert('Plantilla guardada correctamente en el sistema. Redirigiendo a tu inventario...');
+        alert('Pack configurado correctamente. Redirigiendo a tu inventario...');
         navigate('/merchant/daily-stock');
       }
     } catch (error) {
@@ -107,24 +117,33 @@ const SurprisePackTemplateEditor = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans p-4 md:p-8">
-      <div className="max-w-4xl mx-auto bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
-        
-        {/* Cabecera del Editor */}
-        <div className="bg-gray-900 px-6 py-5 border-b border-gray-800">
-          <h2 className="text-xl font-bold text-white">Editor de Plantilla: Pack Sorpresa</h2>
-          <p className="text-gray-400 text-sm mt-1">Configura las reglas de tu inventario diario de rescate de alimentos.</p>
+    <div className="min-h-screen bg-gray-50 pb-12">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-8 py-6 mb-8 shadow-sm">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+              <Package className="text-blue-600" size={28} />
+              Configurar Pack Sorpresa
+            </h1>
+            <p className="text-gray-500 mt-1">
+              Programa y define las reglas de tu inventario de rescate de alimentos.
+            </p>
+          </div>
         </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* SECCIÓN 1: Información General */}
-          <section>
-            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
-              1. Identidad del Pack
+          {/* SECCIÓN 1: Detalles Básicos */}
+          <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2 border-b border-gray-100 pb-4">
+              <Info className="text-gray-400" size={20} />
+              Detalles del Pack
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Nombre Comercial</label>
                 <input
@@ -133,8 +152,8 @@ const SurprisePackTemplateEditor = () => {
                   required
                   value={formData.title}
                   onChange={handleChange}
-                  placeholder="Ej. Pack Sorpresa de Bollería"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white"
+                  placeholder="Ej. Pack de Bollería y Pan"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
                 />
               </div>
 
@@ -145,7 +164,7 @@ const SurprisePackTemplateEditor = () => {
                   required
                   value={formData.category}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 focus:bg-white"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
                 >
                   <option value="" disabled>Seleccionar...</option>
                   <option value="panaderia">Panadería</option>
@@ -165,58 +184,66 @@ const SurprisePackTemplateEditor = () => {
                   value={formData.description}
                   onChange={handleChange}
                   placeholder="Ej. Puede contener pan dulce, croissants del día anterior o tartas."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 focus:bg-white resize-none"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white resize-none"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Instrucciones Operativas para el Cliente</label>
-                <input
-                  type="text"
-                  name="instructions"
-                  value={formData.instructions}
-                  onChange={handleChange}
-                  placeholder="Ej. Traer bolsa propia. Entrar por la puerta lateral."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 focus:bg-white"
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 border-t border-gray-100 pt-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Fotografía del Producto (Obligatorio)</label>
-              <div className="flex items-center justify-center w-full">
-                <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 relative overflow-hidden">
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                      </svg>
-                      <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Haz clic para subir</span> o arrastra y suelta</p>
-                      <p className="text-xs text-gray-500">PNG o JPG (MAX. 5MB)</p>
-                    </div>
-                  )}
-                  <input type="file" className="hidden" accept="image/png, image/jpeg" onChange={handleImageChange} required />
-                </label>
               </div>
             </div>
           </section>
 
-          {/* SECCIÓN 2: Anclaje Financiero */}
-          <section className="bg-blue-50 rounded-lg p-5 border border-blue-100">
-            <h3 className="text-sm font-bold text-blue-900 uppercase tracking-wider mb-4">
-              2. Modelo Financiero y Descuentos
+          {/* SECCIÓN 2: Imágenes */}
+          <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-6 border-b border-gray-100 pb-4">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <ImageIcon className="text-gray-400" size={20} />
+                Fotografías del Pack
+              </h3>
+              <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                {imagesPreview.length} / 3 Máx
+              </span>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {imagesPreview.map((src, idx) => (
+                <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 group">
+                  <img src={src} alt="Preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(idx)}
+                    className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-md"
+                  >
+                    <X size={14} strokeWidth={3} />
+                  </button>
+                </div>
+              ))}
+
+              {imagesPreview.length < 3 && (
+                <label className="flex flex-col items-center justify-center aspect-square border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                  <div className="flex flex-col items-center justify-center p-4 text-center">
+                    <UploadCloud className="w-8 h-8 mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-500 font-semibold">Subir Foto</p>
+                    <p className="text-[10px] text-gray-400 mt-1">PNG o JPG</p>
+                  </div>
+                  <input type="file" className="hidden" accept="image/png, image/jpeg" multiple onChange={handleImageChange} />
+                </label>
+              )}
+            </div>
+          </section>
+
+          {/* SECCIÓN 3: Financiero */}
+          <section className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-2xl shadow-sm border border-blue-100 p-6">
+            <h3 className="text-lg font-bold text-blue-900 mb-6 flex items-center gap-2 border-b border-blue-200/50 pb-4">
+              <Tag className="text-blue-500" size={20} />
+              Modelo Financiero
             </h3>
-            <p className="text-sm text-blue-700 mb-5">
+            
+            <p className="text-sm text-blue-700 mb-6 font-medium bg-blue-100/50 p-3 rounded-lg flex items-start gap-2">
+              <Info className="shrink-0 mt-0.5 text-blue-500" size={16} />
               Nuestra política exige un descuento mínimo del 66% para garantizar la venta rápida y evitar el desperdicio.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-              
-              {/* Valor Original */}
-              <div className="bg-white p-4 rounded-md border border-gray-200 shadow-sm">
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Valor Original (Q)</label>
+              <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Valor Original (Q)</label>
                 <input
                   type="number"
                   name="originalPrice"
@@ -225,14 +252,13 @@ const SurprisePackTemplateEditor = () => {
                   step="0.01"
                   value={formData.originalPrice}
                   onChange={handleChange}
-                  placeholder="Ej. 60.00"
-                  className="w-full text-2xl font-black text-gray-900 border-none focus:ring-0 p-0"
+                  placeholder="60.00"
+                  className="w-full text-3xl font-black text-gray-900 border-none focus:ring-0 p-0 placeholder:text-gray-300"
                 />
               </div>
 
-              {/* Selector de Descuento */}
-              <div className="flex flex-col items-center">
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Descuento Ofrecido</label>
+              <div className="flex flex-col items-center px-4">
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-3">Descuento Ofrecido</label>
                 <input 
                   type="range" 
                   min="66" 
@@ -240,75 +266,109 @@ const SurprisePackTemplateEditor = () => {
                   step="1" 
                   value={discountRate} 
                   onChange={handleDiscountChange}
-                  className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer"
+                  className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                 />
-                <span className="mt-2 text-xl font-black text-blue-600">{discountRate}% OFF</span>
+                <span className="mt-3 text-2xl font-black text-blue-600">{discountRate}% OFF</span>
               </div>
 
-              {/* Precio de Venta Bloqueado */}
-              <div className="bg-gray-900 p-4 rounded-md shadow-sm border border-black">
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Precio al Público (Q)</label>
-                <div className="text-3xl font-black text-green-400">
+              <div className="bg-gray-900 p-5 rounded-xl shadow-md border border-gray-800 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-2 opacity-10">
+                  <CheckCircle size={48} />
+                </div>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-2 relative z-10">Precio al Público (Q)</label>
+                <div className="text-4xl font-black text-green-400 relative z-10">
                   {salePrice}
                 </div>
               </div>
-
             </div>
           </section>
 
-          {/* SECCIÓN 3: Logística de Recogida */}
-          <section>
-            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
-              3. Ventana Estricta de Recogida
+          {/* SECCIÓN 4: Logística */}
+          <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2 border-b border-gray-100 pb-4">
+              <Calendar className="text-gray-400" size={20} />
+              Ventana de Recogida
             </h3>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Hora de Inicio</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Fecha</label>
                 <input
-                  type="time"
-                  name="startTime"
+                  type="date"
+                  name="pickupDate"
                   required
-                  value={formData.startTime}
+                  value={formData.pickupDate}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white"
+                  min={new Date().toISOString().split('T')[0]} // No permitir fechas pasadas
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white"
                 />
               </div>
               
               <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Hora de Inicio</label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="time"
+                    name="startTime"
+                    required
+                    value={formData.startTime}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+              
+              <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Hora Límite</label>
-                <input
-                  type="time"
-                  name="endTime"
-                  required
-                  value={formData.endTime}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white"
-                />
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="time"
+                    name="endTime"
+                    required
+                    value={formData.endTime}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                  />
+                </div>
               </div>
             </div>
 
             {timeError && (
-              <div className="mt-3 text-sm font-bold text-blue-800 bg-blue-100 p-3 rounded border border-blue-200">
+              <div className="mt-4 flex items-center gap-2 text-sm font-medium text-amber-800 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                <AlertCircle size={18} className="text-amber-500 shrink-0" />
                 {timeError}
               </div>
             )}
+            
+            <div className="mt-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Instrucciones Operativas para el Cliente</label>
+              <input
+                type="text"
+                name="instructions"
+                value={formData.instructions}
+                onChange={handleChange}
+                placeholder="Ej. Traer bolsa propia. Entrar por la puerta lateral."
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white"
+              />
+            </div>
           </section>
 
           {/* Acciones */}
-          <div className="pt-6 flex justify-end">
+          <div className="pt-4 flex justify-end">
             <button
               type="submit"
               disabled={!formData.originalPrice || isSubmitting}
-              className="px-8 py-3 bg-gray-900 text-white text-sm font-bold rounded-md hover:bg-black transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2"
+              className="px-8 py-3.5 bg-blue-600 text-white text-base font-bold rounded-xl hover:bg-blue-700 transition-all disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed shadow-sm hover:shadow-md flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Guardando...
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Guardando Pack...
                 </>
               ) : (
-                'Guardar Plantilla Base'
+                'Programar y Guardar Pack'
               )}
             </button>
           </div>

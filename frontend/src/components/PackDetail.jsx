@@ -104,13 +104,16 @@ const PackDetail = () => {
     );
   }
 
+  const rawImageUrl = pack.image_url || pack.cover_url || '';
+  const imageUrl = rawImageUrl.includes(',') ? rawImageUrl.split(',')[0] : (rawImageUrl || 'https://via.placeholder.com/600x400?text=Sin+Imagen');
+
   return (
     <div style={{ maxWidth: '450px', margin: '40px auto', backgroundColor: 'white', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #F3F4F6', fontFamily: 'sans-serif' }}>
       
       {/* Cabecera de Imagen */}
       <div style={{ position: 'relative', height: '200px', backgroundColor: '#E5E7EB' }}>
         <img 
-          src={pack.image_url || pack.cover_url} 
+          src={imageUrl} 
           alt={pack.title} 
           style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
         />
@@ -138,7 +141,7 @@ const PackDetail = () => {
         <div style={{ backgroundColor: '#F3F4F6', padding: '12px', borderRadius: '8px', marginBottom: '24px', borderLeft: '4px solid #3B82F6' }}>
           <p style={{ margin: 0, fontSize: '0.875rem', color: '#374151' }}>
             <strong style={{ display: 'block', marginBottom: '4px' }}>Horario de recogida oficial:</strong>
-            {new Date(pack.pickup_start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(pack.pickup_end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+            {new Date(pack.pickup_start_time).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} {new Date(pack.pickup_start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(pack.pickup_end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
           </p>
         </div>
 

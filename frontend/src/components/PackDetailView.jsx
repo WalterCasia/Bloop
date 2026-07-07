@@ -128,7 +128,25 @@ const PackDetailView = ({ pack }) => {
     );
   }
 
-  const imageUrl = pack.image_url || pack.cover_url || 'https://via.placeholder.com/600x400?text=Sin+Imagen';
+  const rawImageUrl = pack.image_url || pack.cover_url || '';
+  const images = rawImageUrl.includes(',') ? rawImageUrl.split(',') : [rawImageUrl || 'https://via.placeholder.com/600x400?text=Sin+Imagen'];
+
+  const formatPickupDay = (dateString) => {
+    if (!dateString) return 'Hoy';
+    const pickupDate = new Date(dateString);
+    const today = new Date();
+    
+    const pickupDay = new Date(pickupDate.getFullYear(), pickupDate.getMonth(), pickupDate.getDate());
+    const currentDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    
+    const diffTime = pickupDay - currentDay;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Hoy';
+    if (diffDays === 1) return 'Mañana';
+    return pickupDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+  };
+  const pickupDayLabel = formatPickupDay(pack.pickup_start_time);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans pb-24 relative">
@@ -137,19 +155,28 @@ const PackDetailView = ({ pack }) => {
       {!reservation && (
         <button 
           onClick={() => navigate(-1)} 
-          className="absolute top-4 left-4 z-10 bg-white/80 backdrop-blur p-2 rounded-full shadow-sm text-gray-800 hover:bg-white transition"
+          className="absolute top-4 left-4 z-20 bg-white/80 backdrop-blur p-2 rounded-full shadow-sm text-gray-800 hover:bg-white transition"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
         </button>
       )}
 
-      {/* Hero Image */}
-      <div className="w-full h-64 md:h-80 relative">
-        <img src={imageUrl} alt={pack.title} className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
-        <div className="absolute bottom-4 left-4 right-4 text-white">
-          <h1 className="text-2xl md:text-3xl font-extrabold shadow-sm">{pack.store_name}</h1>
-          <p className="text-lg font-medium opacity-90">{pack.title}</p>
+      {/* Hero Image (Carrusel simple) */}
+      <div className="w-full h-64 md:h-80 relative overflow-x-auto flex snap-x snap-mandatory hide-scrollbar">
+        {images.map((imgSrc, idx) => (
+          <div key={idx} className="w-full h-full flex-shrink-0 snap-center relative">
+            <img src={imgSrc} alt={`${pack.title} - ${idx + 1}`} className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+          </div>
+        ))}
+        {images.length > 1 && (
+          <div className="absolute top-4 right-4 bg-black/50 text-white text-xs px-2 py-1 rounded-full z-10 font-medium">
+            1/{images.length} ➔
+          </div>
+        )}
+        <div className="absolute bottom-4 left-4 right-4 text-white z-10 pointer-events-none">
+          <h1 className="text-2xl md:text-3xl font-extrabold shadow-sm drop-shadow-md">{pack.store_name}</h1>
+          <p className="text-lg font-medium opacity-90 drop-shadow-md">{pack.title}</p>
         </div>
       </div>
 
@@ -174,7 +201,7 @@ const PackDetailView = ({ pack }) => {
           <h3 className="font-bold text-gray-800 text-sm mb-2">Ventana estricta de recogida</h3>
           <div className="flex items-center text-blue-700 bg-blue-50 px-3 py-2 rounded-lg text-sm font-bold w-fit">
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            Hoy, {formatTime(pack.pickup_start_time)} - {formatTime(pack.pickup_end_time)}
+            {pickupDayLabel}, {formatTime(pack.pickup_start_time)} - {formatTime(pack.pickup_end_time)}
           </div>
           
           <hr className="border-gray-100 my-4" />

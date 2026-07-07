@@ -15,9 +15,31 @@ const PackCard = ({ pack }) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const formatPickupDay = (dateString) => {
+    if (!dateString) return 'Hoy';
+    const pickupDate = new Date(dateString);
+    const today = new Date();
+    
+    // Normalize to midnight for accurate comparison
+    const pickupDay = new Date(pickupDate.getFullYear(), pickupDate.getMonth(), pickupDate.getDate());
+    const currentDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    
+    const diffTime = pickupDay - currentDay;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Hoy';
+    if (diffDays === 1) return 'Mañana';
+    
+    // Si es otro día, formato "DD MMM"
+    return pickupDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  };
+
   const pickupStart = formatTime(pack.pickup_start_time);
   const pickupEnd = formatTime(pack.pickup_end_time);
-  const imageUrl = pack.image_url || pack.cover_url || 'https://via.placeholder.com/300x200?text=Sin+Imagen';
+  const pickupDayLabel = formatPickupDay(pack.pickup_start_time);
+  
+  const rawImageUrl = pack.image_url || pack.cover_url || '';
+  const imageUrl = rawImageUrl.includes(',') ? rawImageUrl.split(',')[0] : (rawImageUrl || 'https://via.placeholder.com/300x200?text=Sin+Imagen');
 
   return (
     <div className={`flex flex-row bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4 transition-all duration-300 hover:shadow-md ${isSoldOut ? 'opacity-60 grayscale-[50%]' : 'opacity-100'}`}>
@@ -52,7 +74,7 @@ const PackCard = ({ pack }) => {
           
           <div className="inline-flex items-center text-[11px] font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded">
             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            Hoy {pickupStart} - {pickupEnd}
+            {pickupDayLabel} {pickupStart} - {pickupEnd}
           </div>
         </div>
 
