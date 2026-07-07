@@ -2,15 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
-import { Store, UserCircle, ArrowLeft, Mail, Lock, KeyRound } from 'lucide-react';
+import { Mail, Lock, KeyRound } from 'lucide-react';
 import apiClient from '../../api/apiClient';
+import OnboardingLayout from './OnboardingLayout';
+import MerchantRoleStep from './steps/MerchantRoleStep';
 
 const MerchantAuthFlow = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
-  // view: 'select' | 'employee_login'
-  const [view, setView] = useState('select');
+  const [step, setStep] = useState(1);
+  const [selectedRole, setSelectedRole] = useState(''); // 'manager' | 'employee'
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,12 +21,13 @@ const MerchantAuthFlow = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (user && view === 'select') {
+    if (user && step === 1) {
       const role = user.user_metadata?.role;
       if (role === 'CLIENTE') {
         supabase.auth.signOut().then(() => {
           setError('Esta cuenta pertenece a un cliente. Por favor ingresa a través del Portal para Clientes.');
-          setView('employee_login'); // Para mostrar el error en el formulario si estaban en select
+          setStep(2); // Forzamos ir al form para ver el error
+          setSelectedRole('employee');
         });
       } else if (role === 'COMERCIO') {
         const onboardingCompleted = user.user_metadata?.onboarding_completed;
@@ -35,16 +38,32 @@ const MerchantAuthFlow = () => {
         }
       }
     }
-  }, [user, navigate, view]);
+  }, [user, navigate, step]);
 
-  const handleManagerSelect = () => {
-    // Si ya tiene cuenta, pero eligió gerente, lo mandamos a login y luego onboarding/dashboard
-    // Como simplificación de este flujo, el dueño va a la página de registro/onboarding
-    navigate('/signup');
+  const handleNext = () => {
+    if (step === 1) {
+      if (selectedRole === 'manager') {
+        // Redirige al registro clásico por ahora, para mantener el scope.
+        // En un futuro se podría migrar también.
+        navigate('/signup');
+      } else if (selectedRole === 'employee') {
+        setStep(2);
+      }
+    } else if (step === 2) {
+      handleEmployeeLogin();
+    }
   };
 
-  const handleEmployeeLogin = async (e) => {
-    e.preventDefault();
+  const handleBack = () => {
+    if (step === 2) {
+      setStep(1);
+      setError('');
+    } else {
+      navigate('/');
+    }
+  };
+
+  const handleEmployeeLogin = async () => {
     setLoading(true);
     setError('');
 
@@ -53,9 +72,6 @@ const MerchantAuthFlow = () => {
         throw new Error('El código de invitación debe tener 6 caracteres.');
       }
 
-      // El empleado primero inicia sesión o se registra. 
-      // Asumiremos que el empleado usa este formulario para crear su cuenta/iniciar sesión con el código.
-      // 1. Intentamos iniciar sesión
       let authUser;
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
@@ -63,7 +79,6 @@ const MerchantAuthFlow = () => {
       });
 
       if (signInError) {
-        // Si no existe, lo registramos
         if (signInError.message.includes('Invalid login credentials')) {
           const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email,
@@ -71,7 +86,7 @@ const MerchantAuthFlow = () => {
             options: {
               data: {
                 role: 'COMERCIO',
-                onboarding_completed: true // Empleados no necesitan hacer el wizard
+                onboarding_completed: true
               }
             }
           });
@@ -93,7 +108,6 @@ const MerchantAuthFlow = () => {
         }
       }
 
-      // 2. Ya autenticados, consumimos la invitación a través de nuestro endpoint
       try {
         const { session } = await supabase.auth.getSession();
         await apiClient.post('/api/merchant/invitations/accept', 
@@ -101,11 +115,9 @@ const MerchantAuthFlow = () => {
           { headers: { Authorization: `Bearer ${session.access_token}` } }
         );
       } catch (invError) {
-        // Falló la invitación (código inválido o expirado)
         throw new Error(invError.response?.data?.message || 'Código de invitación inválido o expirado.');
       }
 
-      // 3. Todo salió bien
       navigate('/merchant/dashboard', { replace: true });
 
     } catch (err) {
@@ -115,147 +127,103 @@ const MerchantAuthFlow = () => {
     }
   };
 
-  if (view === 'employee_login') {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <button 
-            onClick={() => setView('select')}
-            className="flex items-center text-sm font-bold text-gray-500 hover:text-gray-900 mb-6 transition-colors"
-          >
-            <ArrowLeft size={16} className="mr-1" /> Volver atrás
-          </button>
+  const canContinue = () => {
+    if (step === 1) return !!selectedRole;
+    if (step === 2) return email && password && inviteCode.length === 6;
+    return false;
+  };
 
-          <h2 className="text-3xl font-extrabold text-gray-900">
+  return (
+    <OnboardingLayout
+      currentStep={step}
+      totalSteps={selectedRole === 'employee' ? 2 : 1}
+      onBack={handleBack}
+      onNext={handleNext}
+      canContinue={canContinue()}
+      isLoading={loading}
+      nextLabel={step === 2 ? 'Acceder al Comercio' : 'Continuar'}
+    >
+      {step === 1 && (
+        <MerchantRoleStep 
+          selectedRole={selectedRole} 
+          setSelectedRole={setSelectedRole} 
+        />
+      )}
+
+      {step === 2 && (
+        <div className="w-full animation-fade-in max-w-md mx-auto">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 leading-tight">
             Acceso de Empleados
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-4 text-lg text-gray-500 mb-8">
             Ingresa tus credenciales y el código de 6 dígitos proporcionado por tu gerente.
           </p>
-        </div>
 
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white py-8 px-4 shadow-sm sm:rounded-2xl sm:px-10 border border-gray-100">
-            
-            {error && (
-              <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
-                {error}
-              </div>
-            )}
-
-            <form className="space-y-6" onSubmit={handleEmployeeLogin}>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                    placeholder="tucorreo@ejemplo.com"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 text-blue-600">Código de Invitación</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <KeyRound className="h-5 w-5 text-blue-400" />
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    maxLength={6}
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                    className="appearance-none block w-full pl-10 pr-3 py-4 border-2 border-blue-200 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-center text-xl font-black tracking-[0.2em] uppercase bg-blue-50/50"
-                    placeholder="ABC123"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-gray-900 hover:bg-black focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 transition-colors"
-              >
-                {loading ? 'Verificando...' : 'Acceder al Comercio'}
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // --- RENDER PASO 1: SELECCIÓN DE ROL B2B ---
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <h1 className="text-4xl font-black text-gray-900 tracking-tight">Portal B2B</h1>
-        <h2 className="mt-4 text-xl font-medium text-gray-600">
-          ¿Cómo deseas acceder a tu comercio?
-        </h2>
-      </div>
-
-      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-xl px-4">
-        <div className="grid grid-cols-1 gap-4">
-          <button
-            onClick={handleManagerSelect}
-            className="flex items-start p-6 bg-white border-2 border-gray-200 rounded-2xl hover:border-gray-900 hover:shadow-md transition-all text-left"
-          >
-            <div className="p-3 bg-gray-100 rounded-full mr-4 text-gray-700">
-              <Store size={28} />
+          {error && (
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm font-medium">
+              {error}
             </div>
+          )}
+
+          <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleNext(); }}>
             <div>
-              <h3 className="text-lg font-bold text-gray-900">Soy Propietario / Gerente</h3>
-              <p className="mt-1 text-sm text-gray-500 font-medium">Registraré un nuevo negocio en la plataforma o administraré mis tiendas actuales.</p>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="appearance-none block w-full pl-10 pr-3 py-4 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-base transition-colors"
+                  placeholder="tucorreo@ejemplo.com"
+                />
+              </div>
             </div>
-          </button>
 
-          <button
-            onClick={() => setView('employee_login')}
-            className="flex items-start p-6 bg-white border-2 border-gray-200 rounded-2xl hover:border-blue-500 hover:shadow-md transition-all text-left group"
-          >
-            <div className="p-3 bg-blue-50 rounded-full mr-4 text-blue-600 group-hover:bg-blue-100 transition-colors">
-              <UserCircle size={28} />
-            </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-900">Soy Empleado</h3>
-              <p className="mt-1 text-sm text-gray-500 font-medium">Tengo un código de invitación de mi gerente para unirme a un local existente.</p>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="appearance-none block w-full pl-10 pr-3 py-4 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-base transition-colors"
+                  placeholder="••••••••"
+                />
+              </div>
             </div>
-          </button>
-        </div>
 
-        <div className="mt-8 text-center">
-           <button onClick={() => navigate('/')} className="text-sm font-medium text-gray-500 hover:text-gray-900 flex items-center justify-center w-full gap-2">
-              <ArrowLeft size={16} /> Volver a la página principal
-           </button>
+            <div>
+              <label className="block text-sm font-bold text-blue-600 mb-1 mt-8">Código de Invitación</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <KeyRound className="h-6 w-6 text-blue-500" />
+                </div>
+                <input
+                  type="text"
+                  required
+                  maxLength={6}
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                  className="appearance-none block w-full pl-12 pr-3 py-5 border-2 border-blue-200 rounded-xl shadow-sm placeholder-blue-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-center text-2xl font-black tracking-[0.25em] uppercase bg-blue-50/50"
+                  placeholder="ABC123"
+                />
+              </div>
+            </div>
+
+            {/* Submit oculto gestionado por OnboardingLayout */}
+            <button type="submit" className="hidden" />
+          </form>
         </div>
-      </div>
-    </div>
+      )}
+    </OnboardingLayout>
   );
 };
 

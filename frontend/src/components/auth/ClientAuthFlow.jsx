@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
-import { Leaf, Vegan, WheatOff, Utensils, Mail, Lock, ArrowRight, User } from 'lucide-react';
+import { Mail, Lock, User } from 'lucide-react';
+import OnboardingLayout from './OnboardingLayout';
+import ClientDietStep from './steps/ClientDietStep';
 
 const ClientAuthFlow = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
+  const [step, setStep] = useState(1);
   const [isLogin, setIsLogin] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,20 +18,12 @@ const ClientAuthFlow = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Estados para el paso 2: Preferencias
-  const [showPreferences, setShowPreferences] = useState(false);
-  const [selectedDiet, setSelectedDiet] = useState('');
-
-  const DIETARY_OPTIONS = [
-    { id: 'none', label: 'Sin restricciones', icon: Utensils, color: 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200' },
-    { id: 'vegetarian', label: 'Vegetariano', icon: Leaf, color: 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200' },
-    { id: 'vegan', label: 'Vegano', icon: Vegan, color: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200' },
-    { id: 'gluten_free', label: 'Sin Gluten', icon: WheatOff, color: 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200' }
-  ];
+  // Estados para el paso 2: Preferencias (array para multi-selección)
+  const [selectedDiets, setSelectedDiets] = useState([]);
 
   useEffect(() => {
-    // Si ya hay usuario y no estamos mostrando la pantalla de preferencias, evaluamos hacia dónde ir
-    if (user && !showPreferences) {
+    // Manejo de ruteo si ya está autenticado
+    if (user) {
       const role = user.user_metadata?.role;
       const onboardingCompleted = user.user_metadata?.onboarding_completed;
       
@@ -44,29 +39,28 @@ const ClientAuthFlow = () => {
         return;
       }
 
-      // Si es cliente pero no ha completado el onboarding, mostramos preferencias
-      if (role === 'CLIENTE' && !onboardingCompleted) {
-        setShowPreferences(true);
+      // Si es cliente pero no ha completado el onboarding, mostramos preferencias (step 2)
+      if (role === 'CLIENTE' && !onboardingCompleted && step === 1) {
+        setStep(2);
       } else if (!role) {
         // Usuario legacy o Auth Google inicial: asignamos rol y mostramos preferencias
         assignClientRole();
       }
     }
-  }, [user, navigate, showPreferences]);
+  }, [user, navigate, step]);
 
   const assignClientRole = async () => {
     try {
       await supabase.auth.updateUser({
         data: { role: 'CLIENTE', onboarding_completed: false }
       });
-      setShowPreferences(true);
+      setStep(2);
     } catch (err) {
       console.error("Error setting client role:", err);
     }
   };
 
-  const handleAuth = async (e) => {
-    e.preventDefault();
+  const handleAuth = async () => {
     setLoading(true);
     setError('');
 
@@ -96,14 +90,9 @@ const ClientAuthFlow = () => {
           }
         });
         if (signUpError) throw signUpError;
-        
-        // Supabase auto logins on signup mostly, the useEffect will catch it
-        // If email confirmation is required, handle it:
-        alert('Registro exitoso. Iniciando sesión...');
       }
     } catch (err) {
       setError(err.message || 'Error en la autenticación.');
-    } finally {
       setLoading(false);
     }
   };
@@ -134,16 +123,16 @@ const ClientAuthFlow = () => {
     setLoading(true);
     setError('');
     try {
+      const dietString = selectedDiets.length > 0 ? selectedDiets.join(',') : 'none';
       const { error: updateError } = await supabase.auth.updateUser({
         data: {
-          dietary_preference: selectedDiet || 'none',
+          dietary_preference: dietString,
           onboarding_completed: true
         }
       });
 
       if (updateError) throw updateError;
       
-      // La base de datos asume que existe un perfil. Crearlo si es necesario o un trigger ya lo hizo.
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -158,99 +147,69 @@ const ClientAuthFlow = () => {
       navigate('/explore', { replace: true });
     } catch (err) {
       setError(err.message || 'Error al guardar preferencias.');
-    } finally {
       setLoading(false);
     }
   };
 
-  // --- RENDER PASO 2: PREFERENCIAS ---
-  if (showPreferences) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Personaliza tu experiencia
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            ¿Tienes alguna preferencia dietética?
-          </p>
-        </div>
+  const handleNext = () => {
+    if (step === 1) {
+      handleAuth();
+    } else if (step === 2) {
+      handleSavePreferences();
+    }
+  };
 
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white py-8 px-4 shadow-sm sm:rounded-2xl sm:px-10 border border-gray-100">
-            
-            {error && (
-              <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
-                {error}
-              </div>
-            )}
+  const handleBack = () => {
+    if (step === 2) {
+      // Si el usuario ya está autenticado y trata de ir atrás desde preferencias,
+      // la única opción sensata sería cerrar sesión o volver al landing.
+      supabase.auth.signOut().then(() => navigate('/'));
+    } else {
+      navigate('/');
+    }
+  };
 
-            <div className="grid grid-cols-1 gap-4">
-              {DIETARY_OPTIONS.map((option) => {
-                const Icon = option.icon;
-                const isSelected = selectedDiet === option.id;
-                return (
-                  <button
-                    key={option.id}
-                    onClick={() => setSelectedDiet(option.id)}
-                    className={`flex items-center p-4 rounded-xl border-2 transition-all ${
-                      isSelected 
-                        ? 'border-green-500 bg-green-50' 
-                        : 'border-gray-200 hover:border-green-300 bg-white'
-                    }`}
-                  >
-                    <div className={`p-3 rounded-full mr-4 ${isSelected ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                      <Icon size={24} />
-                    </div>
-                    <div className="flex-1 text-left">
-                      <h3 className={`font-bold text-lg ${isSelected ? 'text-green-900' : 'text-gray-900'}`}>
-                        {option.label}
-                      </h3>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+  const canContinue = () => {
+    if (step === 1) {
+      if (isLogin) return email && password;
+      return fullName && email && password;
+    }
+    if (step === 2) {
+      return selectedDiets.length > 0;
+    }
+    return false;
+  };
 
-            <button
-              onClick={handleSavePreferences}
-              disabled={loading || !selectedDiet}
-              className="mt-8 w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 transition-colors"
-            >
-              {loading ? 'Guardando...' : 'Comenzar a explorar'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // --- RENDER PASO 1: AUTH ---
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <h1 className="text-4xl font-black text-green-600 tracking-tight">Bloop.</h1>
-        <h2 className="mt-6 text-2xl font-bold text-gray-900">
-          {isLogin ? 'Bienvenido de nuevo' : 'Crea tu cuenta B2C'}
-        </h2>
-        <p className="mt-2 text-sm text-gray-600">
-          O{' '}
-          <button onClick={() => setIsLogin(!isLogin)} className="font-bold text-green-600 hover:text-green-500">
-            {isLogin ? 'crea una cuenta nueva' : 'inicia sesión en tu cuenta'}
-          </button>
-        </p>
-      </div>
+    <OnboardingLayout
+      currentStep={step}
+      totalSteps={2}
+      onBack={handleBack}
+      onNext={handleNext}
+      onSkip={step === 2 ? () => { setSelectedDiets(['none']); handleNext(); } : undefined}
+      canContinue={canContinue()}
+      isLoading={loading}
+      nextLabel={step === 1 ? (isLogin ? 'Entrar' : 'Crear Cuenta') : 'Finalizar'}
+    >
+      {step === 1 && (
+        <div className="w-full animation-fade-in max-w-md mx-auto">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight">
+            {isLogin ? 'Bienvenido de nuevo' : 'Crea tu cuenta B2C'}
+          </h1>
+          <p className="mt-4 text-gray-500 text-lg mb-8">
+            O{' '}
+            <button onClick={() => setIsLogin(!isLogin)} className="font-bold text-gray-900 underline hover:text-gray-600">
+              {isLogin ? 'crea una cuenta nueva' : 'inicia sesión en tu cuenta'}
+            </button>
+          </p>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-sm sm:rounded-2xl sm:px-10 border border-gray-100">
-          
           {error && (
-            <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm font-medium">
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm font-medium">
               {error}
             </div>
           )}
 
-          <form className="space-y-6" onSubmit={handleAuth}>
+          <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleNext(); }}>
             {!isLogin && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
@@ -263,7 +222,7 @@ const ClientAuthFlow = () => {
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    className="appearance-none block w-full pl-10 pr-3 py-4 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-black focus:border-black sm:text-base transition-colors"
                     placeholder="Tu nombre"
                   />
                 </div>
@@ -281,7 +240,7 @@ const ClientAuthFlow = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                  className="appearance-none block w-full pl-10 pr-3 py-4 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-black focus:border-black sm:text-base transition-colors"
                   placeholder="tucorreo@ejemplo.com"
                 />
               </div>
@@ -298,26 +257,21 @@ const ClientAuthFlow = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                  className="appearance-none block w-full pl-10 pr-3 py-4 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-black focus:border-black sm:text-base transition-colors"
                   placeholder="••••••••"
                 />
               </div>
             </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-gray-900 hover:bg-black focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 transition-colors"
-            >
-              {loading ? 'Procesando...' : (isLogin ? 'Entrar' : 'Crear Cuenta')}
-            </button>
             
-            <div className="relative my-6">
+            {/* Ocultamos submit real ya que OnboardingLayout controla el flujo, pero permitimos Enter */}
+            <button type="submit" className="hidden" />
+            
+            <div className="relative my-8">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">O continuar con</span>
+                <span className="px-2 bg-white text-gray-500 font-medium">O continuar con</span>
               </div>
             </div>
 
@@ -325,9 +279,9 @@ const ClientAuthFlow = () => {
               type="button"
               onClick={handleGoogleSignUp}
               disabled={loading}
-              className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-xl shadow-sm text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 transition-colors"
+              className="w-full flex justify-center items-center py-4 px-4 border border-gray-300 rounded-xl shadow-sm text-base font-bold text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 transition-colors"
             >
-              <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg className="h-6 w-6 mr-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -336,15 +290,16 @@ const ClientAuthFlow = () => {
               Google
             </button>
           </form>
-          
-          <div className="mt-6 text-center">
-             <button onClick={() => navigate(-1)} className="text-sm font-medium text-gray-500 hover:text-gray-900 flex items-center justify-center w-full gap-2">
-                <ArrowRight className="h-4 w-4 rotate-180" /> Volver atrás
-             </button>
-          </div>
         </div>
-      </div>
-    </div>
+      )}
+
+      {step === 2 && (
+        <ClientDietStep 
+          selectedDiets={selectedDiets}
+          setSelectedDiets={setSelectedDiets}
+        />
+      )}
+    </OnboardingLayout>
   );
 };
 
