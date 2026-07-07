@@ -11,7 +11,7 @@ import {
   Legend
 } from 'recharts';
 import apiClient from '../../api/apiClient';
-import { useStoreContext } from '../../context/StoreContext';
+import { useStoreContext } from '../../contexts/StoreContext';
 
 const MerchantReportsView = () => {
   const { activeStore } = useStoreContext();
