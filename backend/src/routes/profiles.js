@@ -99,7 +99,7 @@ export default async function profileRoutes(fastify, options) {
       `;
       
       const full_name_fallback = request.user.email || 'Comercio Bloop';
-      const values = [userId, actualRole, full_name_fallback, store_name, description || null, address, lng, lat, avatar_url || null, cover_url || null];
+      const values = [userId, 'COMERCIO', full_name_fallback, store_name, description || null, address, lng, lat, avatar_url || null, cover_url || null];
       
       const { rows } = await client.query(query, values);
 
@@ -271,8 +271,8 @@ export default async function profileRoutes(fastify, options) {
       
       const storeName = ['COMERCIO', 'OWNER', 'STAFF'].includes(role) ? 'Pendiente' : null;
       const address = ['COMERCIO', 'OWNER', 'STAFF'].includes(role) ? 'Pendiente' : null;
-      
-      const { rows } = await client.query(query, [userId, role, defaultName, storeName, address]);
+      const mappedRole = ['OWNER', 'STAFF'].includes(role) ? 'COMERCIO' : role;
+      const { rows } = await client.query(query, [userId, mappedRole, defaultName, storeName, address]);
 
       return reply.code(200).send({
         status: 'success',
