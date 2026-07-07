@@ -34,7 +34,7 @@ const MerchantAuthFlow = () => {
           setStep(2); // Forzamos ir al form para ver el error
           setSelectedRole('employee');
         });
-      } else if (role === 'COMERCIO') {
+      } else if (role === 'OWNER' || role === 'STAFF') {
         const onboardingCompleted = user.user_metadata?.onboarding_completed;
         if (!onboardingCompleted) {
           navigate('/onboarding/merchant', { replace: true });
@@ -48,7 +48,7 @@ const MerchantAuthFlow = () => {
   const assignMerchantRole = async () => {
     try {
       await supabase.auth.updateUser({
-        data: { role: 'COMERCIO', onboarding_completed: false }
+        data: { role: 'OWNER', onboarding_completed: false }
       });
       // El navegador será redirigido automáticamente por el useEffect una vez que se actualice la sesión.
     } catch (err) {
@@ -94,7 +94,7 @@ const MerchantAuthFlow = () => {
           options: {
             data: {
               full_name: fullName,
-              role: 'COMERCIO',
+              role: 'OWNER',
               onboarding_completed: false
             }
           }
@@ -162,7 +162,7 @@ const MerchantAuthFlow = () => {
             password,
             options: {
               data: {
-                role: 'COMERCIO',
+                role: 'STAFF',
                 onboarding_completed: true
               }
             }

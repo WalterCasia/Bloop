@@ -19,7 +19,7 @@ const SignupPage = () => {
       
       if (!userRole || !onboardingCompleted) {
         navigate('/onboarding', { replace: true });
-      } else if (userRole === 'COMERCIO') {
+      } else if (userRole === 'OWNER' || userRole === 'STAFF') {
         navigate('/merchant/dashboard', { replace: true });
       } else {
         navigate('/explore', { replace: true });

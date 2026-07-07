@@ -31,6 +31,8 @@ import UnderConstructionView from './components/merchant/UnderConstructionView';
 import MerchantOrdersView from './components/merchant/MerchantOrdersView';
 import MerchantStoreSettings from './components/merchant/MerchantStoreSettings';
 import MerchantPerformanceView from './components/merchant/MerchantPerformanceView';
+import RoleProtectedRoute from './components/merchant/RoleProtectedRoute';
+import MerchantDashboardSelector from './components/merchant/MerchantDashboardSelector';
 
 // Placeholder de vistas auxiliares para mantener el enrutador funcional
 const Unauthorized = () => <div style={{ textAlign: 'center', padding: '40px', color: 'red' }}><h1>Acceso Denegado (403)</h1><p>Tu rol no permite acceder a esta área.</p></div>;
@@ -67,15 +69,23 @@ const ProtectedRoute = ({ children, requiredRole, requireOnboarding = false }) =
   }
 
   // 3. Verificación Estricta de Autorización (RBAC)
-  if (requiredRole && userRole !== requiredRole) {
-    return <Navigate to="/unauthorized" replace />;
+  if (requiredRole) {
+    if (Array.isArray(requiredRole)) {
+      if (!requiredRole.includes(userRole)) {
+        return <Navigate to="/unauthorized" replace />;
+      }
+    } else {
+      if (userRole !== requiredRole) {
+        return <Navigate to="/unauthorized" replace />;
+      }
+    }
   }
 
   // 4. Verificación de Onboarding Obligatorio
   if (requireOnboarding) {
     const isCompleted = user.user_metadata?.onboarding_completed === true;
     if (!isCompleted) {
-      if (userRole === 'COMERCIO') return <Navigate to="/onboarding/merchant" replace />;
+      if (userRole === 'OWNER' || userRole === 'STAFF') return <Navigate to="/onboarding/merchant" replace />;
       if (userRole === 'CLIENTE') return <Navigate to="/onboarding/client" replace />;
     }
   }
@@ -167,7 +177,7 @@ const App = () => {
             <Route 
               path="/onboarding/merchant" 
               element={
-                <ProtectedRoute requiredRole="COMERCIO">
+                <ProtectedRoute requiredRole={['OWNER', 'STAFF']}>
                   <MerchantStoreWizard />
                 </ProtectedRoute>
               } 
@@ -177,24 +187,24 @@ const App = () => {
             {/* =======================
                 Layout Exclusivo COMERCIO (Uber Eats Style)
                ======================= */}
-          <Route element={<ProtectedRoute requiredRole="COMERCIO" requireOnboarding={true}><MerchantDashboardLayout /></ProtectedRoute>}>
-            <Route path="/merchant/dashboard" element={<MerchantMainDashboard />} />
-            <Route path="/merchant/daily-stock" element={<DailyStockDashboard />} />
-            <Route path="/merchant/create-pack" element={<SurprisePackTemplateEditor />} />
-            <Route path="/merchant/profile" element={<MerchantProfile />} />
-            <Route path="/merchant/employees" element={<MerchantEmployeesView />} />
-            <Route path="/merchant/stats" element={<MerchantStats />} />
-            <Route path="/merchant/branch/new" element={<MerchantBranchCreator />} />
+          <Route element={<ProtectedRoute requiredRole={['OWNER', 'STAFF']} requireOnboarding={true}><MerchantDashboardLayout /></ProtectedRoute>}>
+            <Route path="/merchant/dashboard" element={<MerchantDashboardSelector />} />
             
-            {/* Rutas Completadas */}
+            {/* Rutas compartidas (OWNER + STAFF) */}
             <Route path="/merchant/orders" element={<MerchantOrdersView />} />
-            <Route path="/merchant/settings" element={<MerchantStoreSettings />} />
-            <Route path="/merchant/performance" element={<MerchantPerformanceView />} />
             
-            {/* Rutas en Construcción (Fases Posteriores) */}
-            <Route path="/merchant/reviews" element={<UnderConstructionView title="Reseñas de Clientes" />} />
-            <Route path="/merchant/reports" element={<UnderConstructionView title="Reportes Analíticos" />} />
-            <Route path="/merchant/payments" element={<UnderConstructionView title="Historial de Pagos" />} />
+            {/* Rutas exclusivas para OWNER */}
+            <Route path="/merchant/daily-stock" element={<RoleProtectedRoute allowedRoles={['OWNER']}><DailyStockDashboard /></RoleProtectedRoute>} />
+            <Route path="/merchant/create-pack" element={<RoleProtectedRoute allowedRoles={['OWNER']}><SurprisePackTemplateEditor /></RoleProtectedRoute>} />
+            <Route path="/merchant/profile" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantProfile /></RoleProtectedRoute>} />
+            <Route path="/merchant/employees" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantEmployeesView /></RoleProtectedRoute>} />
+            <Route path="/merchant/stats" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantStats /></RoleProtectedRoute>} />
+            <Route path="/merchant/branch/new" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantBranchCreator /></RoleProtectedRoute>} />
+            <Route path="/merchant/settings" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantStoreSettings /></RoleProtectedRoute>} />
+            <Route path="/merchant/performance" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantPerformanceView /></RoleProtectedRoute>} />
+            <Route path="/merchant/reviews" element={<RoleProtectedRoute allowedRoles={['OWNER']}><UnderConstructionView title="Reseñas de Clientes" /></RoleProtectedRoute>} />
+            <Route path="/merchant/reports" element={<RoleProtectedRoute allowedRoles={['OWNER']}><UnderConstructionView title="Reportes Analíticos" /></RoleProtectedRoute>} />
+            <Route path="/merchant/payments" element={<RoleProtectedRoute allowedRoles={['OWNER']}><UnderConstructionView title="Historial de Pagos" /></RoleProtectedRoute>} />
           </Route>
 
           {/* Ruta Catch-all (Redirección 404 por defecto a Inicio) */}

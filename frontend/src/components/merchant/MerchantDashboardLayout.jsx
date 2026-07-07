@@ -18,21 +18,26 @@ import {
 } from 'lucide-react';
 
 const MerchantDashboardLayout = () => {
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const navLinks = [
-    { name: 'Inicio', path: '/merchant/dashboard', icon: Home },
-    { name: 'Sucursales', path: '/merchant/employees', icon: Store }, // Empleados y sucursales (actualmente en /merchant/employees)
-    { name: 'Pedidos', path: '/merchant/orders', icon: ShoppingBag },
-    { name: 'Rendimiento', path: '/merchant/performance', icon: TrendingUp },
-    { name: 'Reseñas', path: '/merchant/reviews', icon: Star },
-    { name: 'Packs / Menú', path: '/merchant/daily-stock', icon: Package },
-    { name: 'Reportes', path: '/merchant/reports', icon: FileText },
-    { name: 'Pagos', path: '/merchant/payments', icon: CreditCard },
-    { name: 'Configuración', path: '/merchant/settings', icon: Settings },
-  ];
+  const role = user?.user_metadata?.role;
+
+  const navLinks = useMemo(() => {
+    const allLinks = [
+      { name: 'Inicio', path: '/merchant/dashboard', icon: Home, allowed: ['OWNER', 'STAFF'] },
+      { name: 'Sucursales', path: '/merchant/employees', icon: Store, allowed: ['OWNER'] },
+      { name: 'Pedidos', path: '/merchant/orders', icon: ShoppingBag, allowed: ['OWNER', 'STAFF'] },
+      { name: 'Rendimiento', path: '/merchant/performance', icon: TrendingUp, allowed: ['OWNER'] },
+      { name: 'Reseñas', path: '/merchant/reviews', icon: Star, allowed: ['OWNER'] },
+      { name: 'Packs / Menú', path: '/merchant/daily-stock', icon: Package, allowed: ['OWNER'] },
+      { name: 'Reportes', path: '/merchant/reports', icon: FileText, allowed: ['OWNER'] },
+      { name: 'Pagos', path: '/merchant/payments', icon: CreditCard, allowed: ['OWNER'] },
+      { name: 'Configuración', path: '/merchant/settings', icon: Settings, allowed: ['OWNER'] },
+    ];
+    return allLinks.filter(link => link.allowed.includes(role));
+  }, [role]);
 
   // Determinar el título de la página actual
   const currentPageTitle = useMemo(() => {

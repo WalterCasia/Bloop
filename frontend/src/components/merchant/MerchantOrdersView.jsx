@@ -3,10 +3,10 @@ import apiClient from '../../api/apiClient';
 import { useStoreContext } from '../../contexts/StoreContext';
 import { Search, CheckCircle2, Clock, XCircle, SearchX } from 'lucide-react';
 
-const MerchantOrdersView = () => {
+const MerchantOrdersView = ({ hideHeader = false, defaultTab = 'active' }) => {
   const { activeStore, isLoadingStores } = useStoreContext();
   
-  const [activeTab, setActiveTab] = useState('active'); // 'active' | 'history'
+  const [activeTab, setActiveTab] = useState(defaultTab); // 'active' | 'history'
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,12 +71,14 @@ const MerchantOrdersView = () => {
   }
 
   return (
-    <div className="animate-fade-in pb-12">
+    <div className={`animate-fade-in ${hideHeader ? '' : 'pb-12'}`}>
       {/* Header View */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">Gestión de Pedidos</h1>
-        <p className="text-gray-500 font-medium">Visualiza y administra las reservas de tus clientes.</p>
-      </div>
+      {!hideHeader && (
+        <div className="mb-8">
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">Gestión de Pedidos</h1>
+          <p className="text-gray-500 font-medium">Visualiza y administra las reservas de tus clientes.</p>
+        </div>
+      )}
 
       {/* Toolbar: Tabs & Search */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
