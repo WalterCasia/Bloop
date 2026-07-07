@@ -21,14 +21,6 @@ const MerchantBranchSelector = () => {
     return null;
   }
 
-  if (stores.length === 1) {
-    return (
-      <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl">
-        <Store size={18} className="text-gray-600" />
-        <span className="text-sm font-bold text-gray-800">{activeStore?.name}</span>
-      </div>
-    );
-  }
 
   return (
     <div className="relative">
