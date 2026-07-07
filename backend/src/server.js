@@ -48,6 +48,7 @@ async function registerPlugins() {
   await fastify.register(import('./routes/stats.js'));
   await fastify.register(import('./routes/webhooks.js'));
   await fastify.register(import('./routes/payments.js'));
+  await fastify.register(import('./routes/reviews.js'));
 
   // 4. Inyección de dependencias síncronas en la instancia de Fastify
   fastify.decorate('cloudinary', cloudinary);

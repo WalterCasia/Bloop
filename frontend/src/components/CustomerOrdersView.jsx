@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
 import OrderRedemptionModal from './OrderRedemptionModal';
+import ReviewModal from './ReviewModal';
 
 /**
  * Vista de Gestión de Pedidos del Consumidor con Pestañas
@@ -11,6 +12,7 @@ const CustomerOrdersView = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [reviewOrder, setReviewOrder] = useState(null);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -122,16 +124,45 @@ const CustomerOrdersView = () => {
                   Ver Ticket QR
                 </button>
               )}
+              {activeTab === 'past' && !order.has_review && (
+                <button 
+                  onClick={() => setReviewOrder(order)}
+                  className="bg-gray-100 text-gray-800 text-xs font-bold px-5 py-2.5 rounded-xl hover:bg-gray-200 transition-transform active:scale-95"
+                >
+                  Calificar pedido
+                </button>
+              )}
+              {activeTab === 'past' && order.has_review && (
+                <span className="text-xs font-bold text-gray-400 bg-gray-50 px-3 py-2 rounded-lg">
+                  Calificado
+                </span>
+              )}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Renderizado Condicional del Modal */}
+      {/* Renderizado Condicional del Modal QR */}
       {selectedOrder && (
         <OrderRedemptionModal 
           order={selectedOrder} 
           onClose={() => setSelectedOrder(null)} 
+        />
+      )}
+
+      {/* Modal de Reseña */}
+      {reviewOrder && (
+        <ReviewModal
+          order={reviewOrder}
+          onClose={() => setReviewOrder(null)}
+          onSuccess={() => {
+            setReviewOrder(null);
+            // Actualizamos la orden localmente
+            setOrders(prev => ({
+              ...prev,
+              past: prev.past.map(o => o.id === reviewOrder.id ? { ...o, has_review: true } : o)
+            }));
+          }}
         />
       )}
     </div>

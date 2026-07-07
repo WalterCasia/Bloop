@@ -140,10 +140,12 @@ export default async function orderRoutes(fastify, options) {
           p.pickup_start_time,
           p.pickup_end_time,
           st.name as store_name,
-          st.address as store_address
+          st.address as store_address,
+          CASE WHEN r.id IS NOT NULL THEN true ELSE false END as has_review
         FROM public.orders o
         JOIN public.surprise_packs p ON o.pack_id = p.id
         JOIN public.stores st ON o.store_id = st.id
+        LEFT JOIN public.reviews r ON o.id = r.order_id
         WHERE o.client_id = $1
         ORDER BY o.created_at DESC
       `;

@@ -31,6 +31,7 @@ import UnderConstructionView from './components/merchant/UnderConstructionView';
 import MerchantOrdersView from './components/merchant/MerchantOrdersView';
 import MerchantStoreSettings from './components/merchant/MerchantStoreSettings';
 import MerchantPerformanceView from './components/merchant/MerchantPerformanceView';
+import MerchantReviewsView from './components/merchant/MerchantReviewsView';
 import RoleProtectedRoute from './components/merchant/RoleProtectedRoute';
 import MerchantDashboardSelector from './components/merchant/MerchantDashboardSelector';
 
@@ -202,7 +203,7 @@ const App = () => {
             <Route path="/merchant/branch/new" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantBranchCreator /></RoleProtectedRoute>} />
             <Route path="/merchant/settings" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantStoreSettings /></RoleProtectedRoute>} />
             <Route path="/merchant/performance" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantPerformanceView /></RoleProtectedRoute>} />
-            <Route path="/merchant/reviews" element={<RoleProtectedRoute allowedRoles={['OWNER']}><UnderConstructionView title="Reseñas de Clientes" /></RoleProtectedRoute>} />
+            <Route path="/merchant/reviews" element={<RoleProtectedRoute allowedRoles={['OWNER', 'STAFF']}><MerchantReviewsView /></RoleProtectedRoute>} />
             <Route path="/merchant/reports" element={<RoleProtectedRoute allowedRoles={['OWNER']}><UnderConstructionView title="Reportes Analíticos" /></RoleProtectedRoute>} />
             <Route path="/merchant/payments" element={<RoleProtectedRoute allowedRoles={['OWNER']}><UnderConstructionView title="Historial de Pagos" /></RoleProtectedRoute>} />
           </Route>
