@@ -34,7 +34,7 @@ const MerchantAuthFlow = () => {
           setStep(2); // Forzamos ir al form para ver el error
           setSelectedRole('employee');
         });
-      } else if (role === 'OWNER' || role === 'STAFF') {
+      } else if (role === 'OWNER' || role === 'STAFF' || role === 'COMERCIO') {
         const onboardingCompleted = user.user_metadata?.onboarding_completed;
         if (!onboardingCompleted) {
           navigate('/onboarding/merchant', { replace: true });

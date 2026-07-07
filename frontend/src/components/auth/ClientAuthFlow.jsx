@@ -27,7 +27,7 @@ const ClientAuthFlow = () => {
       const role = user.user_metadata?.role;
       const onboardingCompleted = user.user_metadata?.onboarding_completed;
       
-      if (role === 'OWNER' || role === 'STAFF') {
+      if (role === 'OWNER' || role === 'STAFF' || role === 'COMERCIO') {
         supabase.auth.signOut().then(() => {
           setError('Esta cuenta pertenece a un comercio. Por favor ingresa a través del Portal para Comercios.');
         });
@@ -72,7 +72,7 @@ const ClientAuthFlow = () => {
         });
         if (signInError) throw signInError;
         
-        if (data?.user?.user_metadata?.role === 'OWNER' || data?.user?.user_metadata?.role === 'STAFF') {
+        if (data?.user?.user_metadata?.role === 'OWNER' || data?.user?.user_metadata?.role === 'STAFF' || data?.user?.user_metadata?.role === 'COMERCIO') {
           await supabase.auth.signOut();
           throw new Error('Esta cuenta pertenece a un comercio. Por favor ingresa a través del Portal para Comercios.');
         }

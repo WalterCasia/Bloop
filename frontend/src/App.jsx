@@ -85,7 +85,7 @@ const ProtectedRoute = ({ children, requiredRole, requireOnboarding = false }) =
   if (requireOnboarding) {
     const isCompleted = user.user_metadata?.onboarding_completed === true;
     if (!isCompleted) {
-      if (userRole === 'OWNER' || userRole === 'STAFF') return <Navigate to="/onboarding/merchant" replace />;
+      if (userRole === 'OWNER' || userRole === 'STAFF' || userRole === 'COMERCIO') return <Navigate to="/onboarding/merchant" replace />;
       if (userRole === 'CLIENTE') return <Navigate to="/onboarding/client" replace />;
     }
   }
@@ -177,7 +177,7 @@ const App = () => {
             <Route 
               path="/onboarding/merchant" 
               element={
-                <ProtectedRoute requiredRole={['OWNER', 'STAFF']}>
+                <ProtectedRoute requiredRole={['OWNER', 'STAFF', 'COMERCIO']}>
                   <MerchantStoreWizard />
                 </ProtectedRoute>
               } 
@@ -187,7 +187,7 @@ const App = () => {
             {/* =======================
                 Layout Exclusivo COMERCIO (Uber Eats Style)
                ======================= */}
-          <Route element={<ProtectedRoute requiredRole={['OWNER', 'STAFF']} requireOnboarding={true}><MerchantDashboardLayout /></ProtectedRoute>}>
+          <Route element={<ProtectedRoute requiredRole={['OWNER', 'STAFF', 'COMERCIO']} requireOnboarding={true}><MerchantDashboardLayout /></ProtectedRoute>}>
             <Route path="/merchant/dashboard" element={<MerchantDashboardSelector />} />
             
             {/* Rutas compartidas (OWNER + STAFF) */}

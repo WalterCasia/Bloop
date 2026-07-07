@@ -19,7 +19,7 @@ const LoginPage = () => {
       
       if (!userRole || !onboardingCompleted) {
         navigate('/onboarding', { replace: true });
-      } else if (userRole === 'OWNER' || userRole === 'STAFF') {
+      } else if (userRole === 'OWNER' || userRole === 'STAFF' || userRole === 'COMERCIO') {
         navigate('/merchant/dashboard', { replace: true });
       } else {
         navigate('/explore', { replace: true });
@@ -47,7 +47,7 @@ const LoginPage = () => {
       
       if (!userRole || !onboardingCompleted) {
         navigate('/onboarding', { replace: true });
-      } else if (userRole === 'OWNER' || userRole === 'STAFF') {
+      } else if (userRole === 'OWNER' || userRole === 'STAFF' || userRole === 'COMERCIO') {
         navigate('/merchant/dashboard', { replace: true });
       } else {
         navigate('/explore', { replace: true });
