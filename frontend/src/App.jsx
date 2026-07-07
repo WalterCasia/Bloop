@@ -19,6 +19,8 @@ import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
 import SignupPage from './components/SignupPage';
 import EmployeeJoinView from './components/EmployeeJoinView';
+import ClientAuthFlow from './components/auth/ClientAuthFlow';
+import MerchantAuthFlow from './components/auth/MerchantAuthFlow';
 import NavigationLayout from './components/NavigationLayout';
 import RoleSelectionOnboarding from './components/RoleSelectionOnboarding';
 import ClientOnboardingWizard from './components/ClientOnboardingWizard';
@@ -90,6 +92,10 @@ const App = () => {
               Flujos Públicos
              ======================= */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/auth/client" element={<ClientAuthFlow />} />
+          <Route path="/auth/merchant" element={<MerchantAuthFlow />} />
+          
+          {/* Legacy Routes (Kept for compatibility during transition) */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/join" element={<EmployeeJoinView />} />

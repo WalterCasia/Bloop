@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { MapPin, ShoppingBag, UtensilsCrossed } from 'lucide-react';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -27,16 +28,16 @@ const LandingPage = () => {
         <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#16A34A', letterSpacing: '-0.05em' }}>Bloop.</div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <button 
-            onClick={() => navigate('/login')}
-            style={{ padding: '8px 16px', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#4B5563' }}
+            onClick={() => navigate('/auth/merchant')}
+            style={{ padding: '8px 16px', backgroundColor: 'transparent', border: '1px solid #E5E7EB', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#4B5563', transition: 'all 0.2s' }}
           >
-            Iniciar Sesión
+            Portal para Comercios
           </button>
           <button 
-            onClick={() => navigate('/signup')}
-            style={{ padding: '8px 16px', backgroundColor: '#111827', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+            onClick={() => navigate('/auth/client')}
+            style={{ padding: '8px 16px', backgroundColor: '#111827', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
           >
-            Registrarse
+            Entrar como Cliente
           </button>
         </div>
       </nav>
@@ -54,10 +55,16 @@ const LandingPage = () => {
 
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
           <button 
-            onClick={() => navigate('/signup')}
-            style={{ fontSize: '1.125rem', padding: '16px 32px', backgroundColor: '#16A34A', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(22, 163, 74, 0.2)' }}
+            onClick={() => navigate('/auth/client')}
+            style={{ fontSize: '1.125rem', padding: '16px 32px', backgroundColor: '#16A34A', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(22, 163, 74, 0.2)', transition: 'all 0.2s' }}
           >
-            Comenzar Ahora
+            Entrar como Cliente
+          </button>
+          <button 
+            onClick={() => navigate('/auth/merchant')}
+            style={{ fontSize: '1.125rem', padding: '16px 32px', backgroundColor: 'white', color: '#111827', border: '1px solid #E5E7EB', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)', transition: 'all 0.2s' }}
+          >
+            Portal para Comercios
           </button>
         </div>
       </main>
@@ -65,18 +72,18 @@ const LandingPage = () => {
       {/* Sección Explicativa */}
       <section style={{ backgroundColor: '#F9FAFB', padding: '80px 20px', marginTop: '40px' }}>
         <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', gap: '40px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-          <div style={{ flex: '1 1 250px', textAlign: 'center' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📍</div>
+          <div style={{ flex: '1 1 250px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ marginBottom: '16px', color: '#16A34A' }}><MapPin size={48} /></div>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '8px', color: '#111827' }}>1. Localiza</h3>
             <p style={{ color: '#6B7280', lineHeight: 1.5 }}>Utiliza nuestro mapa geoespacial en tiempo real para encontrar packs sorpresa cerca de ti.</p>
           </div>
-          <div style={{ flex: '1 1 250px', textAlign: 'center' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🛍️</div>
+          <div style={{ flex: '1 1 250px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ marginBottom: '16px', color: '#16A34A' }}><ShoppingBag size={48} /></div>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '8px', color: '#111827' }}>2. Reserva</h3>
             <p style={{ color: '#6B7280', lineHeight: 1.5 }}>Bloquea el inventario de forma segura y obtén un código QR encriptado único.</p>
           </div>
-          <div style={{ flex: '1 1 250px', textAlign: 'center' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>😋</div>
+          <div style={{ flex: '1 1 250px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ marginBottom: '16px', color: '#16A34A' }}><UtensilsCrossed size={48} /></div>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '8px', color: '#111827' }}>3. Rescata</h3>
             <p style={{ color: '#6B7280', lineHeight: 1.5 }}>Muestra tu código en el local durante el horario establecido y disfruta de la comida.</p>
           </div>
