@@ -99,7 +99,12 @@ const MerchantAuthFlow = () => {
             }
           }
         });
-        if (signUpError) throw signUpError;
+        if (signUpError) {
+          if (signUpError.message.includes('User already registered')) {
+            throw new Error('Esta cuenta ya existe. Por favor selecciona "Inicia Sesión" si ya tienes una cuenta.');
+          }
+          throw signUpError;
+        }
       }
     } catch (err) {
       setError(err.message || 'Error en la autenticación.');

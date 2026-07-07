@@ -11,13 +11,20 @@ const LandingPage = () => {
   useEffect(() => {
     if (user) {
       const userRole = user.user_metadata?.role;
-      if (!userRole) {
-        const intendedRole = localStorage.getItem('oauth_intended_role');
+      const intendedRole = localStorage.getItem('oauth_intended_role');
+      
+      if (intendedRole) {
+        localStorage.removeItem('oauth_intended_role');
         if (intendedRole === 'COMERCIO') {
           navigate('/auth/merchant', { replace: true });
         } else {
           navigate('/auth/client', { replace: true });
         }
+        return;
+      }
+
+      if (!userRole) {
+        navigate('/auth/client', { replace: true });
       } else if (userRole === 'OWNER' || userRole === 'STAFF' || userRole === 'COMERCIO') {
         navigate('/merchant/dashboard', { replace: true });
       } else {
