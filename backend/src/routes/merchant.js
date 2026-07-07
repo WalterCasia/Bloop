@@ -227,7 +227,6 @@ export default async function merchantRoutes(fastify, options) {
     }
   }, async (request, reply) => {
     const { qr_code } = request.body;
-    const store_id = request.user.sub || request.user.id; 
     
     let decodedQR;
     try {
@@ -248,17 +247,29 @@ export default async function merchantRoutes(fastify, options) {
       });
     }
 
-    // 2. Control de Acceso: El QR debe pertenecer estricamente al comercio que escanea
-    if (decodedQR.store_id !== store_id) {
-      return reply.code(403).send({
-        error: 'Forbidden',
-        message: 'Intento de validación rechazado: Este código QR pertenece a otra sucursal o comercio.'
-      });
-    }
-
     const client = await fastify.pg.connect();
     
     try {
+      const userId = request.user.sub || request.user.id;
+      let actualStoreId = null;
+      const storeRes = await client.query(`SELECT id FROM public.stores WHERE owner_id = $1 LIMIT 1`, [userId]);
+      if (storeRes.rows.length > 0) {
+        actualStoreId = storeRes.rows[0].id;
+      } else {
+        const profileRes = await client.query(`SELECT assigned_store_id FROM public.profiles WHERE id = $1`, [userId]);
+        if (profileRes.rows.length > 0 && profileRes.rows[0].assigned_store_id) {
+          actualStoreId = profileRes.rows[0].assigned_store_id;
+        }
+      }
+
+      // 2. Control de Acceso: El QR debe pertenecer estricamente al comercio que escanea
+      if (decodedQR.store_id !== actualStoreId) {
+        return reply.code(403).send({
+          error: 'Forbidden',
+          message: 'Intento de validación rechazado: Este código QR pertenece a otra sucursal o comercio.'
+        });
+      }
+
       // 3. Verificación de reglas de negocio en BD y actualización atómica
       // Nota: El usuario solicitó el estado "DELIVERED", pero en nuestro ENUM SQL es "RECOGIDO". 
       // Se utiliza "RECOGIDO" para respetar estrictamente la integridad referencial de la BD.
@@ -275,7 +286,7 @@ export default async function merchantRoutes(fastify, options) {
         RETURNING o.id, o.client_id, sp.title
       `;
 
-      const result = await client.query(updateQuery, [qr_code, store_id]);
+      const result = await client.query(updateQuery, [qr_code, actualStoreId]);
 
       if (result.rowCount === 0) {
         // Si no se actualizó nada, analizamos el motivo específico para un feedback claro al local
@@ -501,10 +512,21 @@ export default async function merchantRoutes(fastify, options) {
     }
   }, async (request, reply) => {
     const { packId, availableStock, status } = request.body;
-    const storeId = request.user.sub || request.user.id;
-
+    
     const client = await fastify.pg.connect();
     try {
+      const userId = request.user.sub || request.user.id;
+      let actualStoreId = null;
+      const storeRes = await client.query(`SELECT id FROM public.stores WHERE owner_id = $1 LIMIT 1`, [userId]);
+      if (storeRes.rows.length > 0) {
+        actualStoreId = storeRes.rows[0].id;
+      } else {
+        const profileRes = await client.query(`SELECT assigned_store_id FROM public.profiles WHERE id = $1`, [userId]);
+        if (profileRes.rows.length > 0 && profileRes.rows[0].assigned_store_id) {
+          actualStoreId = profileRes.rows[0].assigned_store_id;
+        }
+      }
+
       await client.query('BEGIN');
 
       // Regla de Negocio: Evitar reducir stock si choca con reservas activas en Redis
@@ -529,7 +551,7 @@ export default async function merchantRoutes(fastify, options) {
           updated_at = NOW() 
         WHERE id = $2 AND store_id = $3 
         RETURNING id
-      `, [availableStock, packId, storeId]);
+      `, [availableStock, packId, actualStoreId]);
 
       if (updateResult.rowCount === 0) {
         throw new Error('UNAUTHORIZED_OR_NOT_FOUND');
@@ -585,7 +607,6 @@ export default async function merchantRoutes(fastify, options) {
     }
   }, async (request, reply) => {
     const { title, originalPrice, salePrice, startTime, endTime, imageBase64 } = request.body;
-    const storeId = request.user.sub || request.user.id;
     
     // Construir timestamps para la recogida (hoy a las startTime y endTime)
     const today = new Date().toISOString().split('T')[0];
@@ -608,8 +629,24 @@ export default async function merchantRoutes(fastify, options) {
 
     const client = await fastify.pg.connect();
     try {
+      const userId = request.user.sub || request.user.id;
+      let actualStoreId = null;
+      const storeRes = await client.query(`SELECT id FROM public.stores WHERE owner_id = $1 LIMIT 1`, [userId]);
+      if (storeRes.rows.length > 0) {
+        actualStoreId = storeRes.rows[0].id;
+      } else {
+        const profileRes = await client.query(`SELECT assigned_store_id FROM public.profiles WHERE id = $1`, [userId]);
+        if (profileRes.rows.length > 0 && profileRes.rows[0].assigned_store_id) {
+          actualStoreId = profileRes.rows[0].assigned_store_id;
+        }
+      }
+      
+      if (!actualStoreId) {
+        return reply.code(400).send({ error: 'No Store', message: 'No tienes una sucursal asignada o creada.' });
+      }
+
       // Inactivamos packs anteriores del comercio para que solo haya 1 activo (Regla de negocio MVP)
-      await client.query(`UPDATE public.surprise_packs SET is_active = false WHERE store_id = $1`, [storeId]);
+      await client.query(`UPDATE public.surprise_packs SET is_active = false WHERE store_id = $1`, [actualStoreId]);
 
       // Insertamos el nuevo pack
       const insertQuery = `
@@ -619,7 +656,7 @@ export default async function merchantRoutes(fastify, options) {
         RETURNING id
       `;
       // Inicializamos available_quantity y total_quantity en 0 para que el comercio lo ajuste manualmente desde el dashboard
-      const values = [storeId, title, originalPrice, salePrice, 0, 0, pickupStart, pickupEnd, imageUrl];
+      const values = [actualStoreId, title, originalPrice, salePrice, 0, 0, pickupStart, pickupEnd, imageUrl];
       
       const result = await client.query(insertQuery, values);
       
