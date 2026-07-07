@@ -139,11 +139,11 @@ export default async function orderRoutes(fastify, options) {
           p.title as pack_title,
           p.pickup_start_time,
           p.pickup_end_time,
-          st.store_name,
+          st.name as store_name,
           st.address as store_address
         FROM public.orders o
         JOIN public.surprise_packs p ON o.pack_id = p.id
-        JOIN public.profiles st ON o.store_id = st.id
+        JOIN public.stores st ON o.store_id = st.id
         WHERE o.client_id = $1
         ORDER BY o.created_at DESC
       `;

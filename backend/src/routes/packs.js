@@ -32,22 +32,22 @@ export default async function packRoutes(fastify, options) {
         sp.pickup_start_time,
         sp.pickup_end_time,
         sp.image_url,
-        p.store_name,
-        p.address,
-        p.cover_url,
-        ST_Y(p.location::geometry) AS location_lat,
-        ST_X(p.location::geometry) AS location_lng,
+        s.name AS store_name,
+        s.address,
+        s.cover_url,
+        ST_Y(s.location::geometry) AS location_lat,
+        ST_X(s.location::geometry) AS location_lng,
         -- Calcular distancia exacta en kilómetros (ST_Distance con geography devuelve metros)
-        (ST_Distance(p.location::geography, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) / 1000.0) AS distance_km
+        (ST_Distance(s.location::geography, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) / 1000.0) AS distance_km
       FROM public.surprise_packs sp
-      INNER JOIN public.profiles p ON p.id = sp.store_id
+      INNER JOIN public.stores s ON s.id = sp.store_id
       WHERE sp.is_active = true
-        AND p.role = 'COMERCIO'
+        AND s.is_active = true
         AND sp.available_quantity > 0
         -- Filtrar packs cuya ventana de recogida esté activa o en un futuro próximo
         AND sp.pickup_end_time >= NOW()
         -- Condición espacial: Dentro del radio en metros
-        AND ST_Distance(p.location::geography, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) <= ($3 * 1000.0)
+        AND ST_Distance(s.location::geography, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) <= ($3 * 1000.0)
       ORDER BY distance_km ASC
       LIMIT 50;
     `;

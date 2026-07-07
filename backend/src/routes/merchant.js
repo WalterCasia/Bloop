@@ -360,12 +360,28 @@ export default async function merchantRoutes(fastify, options) {
     }
   }, async (request, reply) => {
     // Si storeId viene por query, lo priorizamos (para multi-sucursal)
-    const storeId = request.query.storeId || request.user.sub || request.user.id;
+    let storeId = request.query.storeId;
     const { type, limit, offset } = request.query;
     
     const client = await fastify.pg.connect();
     
     try {
+      if (!storeId) {
+        const userId = request.user.sub || request.user.id;
+        const storeRes = await client.query(`SELECT id FROM public.stores WHERE owner_id = $1 LIMIT 1`, [userId]);
+        if (storeRes.rows.length > 0) {
+          storeId = storeRes.rows[0].id;
+        } else {
+          const profileRes = await client.query(`SELECT assigned_store_id FROM public.profiles WHERE id = $1`, [userId]);
+          if (profileRes.rows.length > 0 && profileRes.rows[0].assigned_store_id) {
+            storeId = profileRes.rows[0].assigned_store_id;
+          }
+        }
+      }
+
+      if (!storeId) {
+        return reply.code(400).send({ status: 'error', message: 'No tienes una sucursal asignada.' });
+      }
       const today = new Date().toISOString().split('T')[0];
       let query = '';
       let queryParams = [];
@@ -438,10 +454,25 @@ export default async function merchantRoutes(fastify, options) {
   fastify.get('/api/merchant/stock', {
     onRequest: [fastify.authenticate]
   }, async (request, reply) => {
-    const storeId = request.user.sub || request.user.id;
     const client = await fastify.pg.connect();
     
     try {
+      const userId = request.user.sub || request.user.id;
+      let actualStoreId = null;
+      const storeRes = await client.query(`SELECT id FROM public.stores WHERE owner_id = $1 LIMIT 1`, [userId]);
+      if (storeRes.rows.length > 0) {
+        actualStoreId = storeRes.rows[0].id;
+      } else {
+        const profileRes = await client.query(`SELECT assigned_store_id FROM public.profiles WHERE id = $1`, [userId]);
+        if (profileRes.rows.length > 0 && profileRes.rows[0].assigned_store_id) {
+          actualStoreId = profileRes.rows[0].assigned_store_id;
+        }
+      }
+
+      if (!actualStoreId) {
+        return reply.code(404).send({ status: 'error', message: 'No tienes una sucursal asignada.' });
+      }
+
       // Obtenemos el pack activo del comercio (asumimos 1 por comercio al día en el MVP)
       const packQuery = `
         SELECT id, title, available_quantity, original_price 
@@ -450,7 +481,7 @@ export default async function merchantRoutes(fastify, options) {
         ORDER BY created_at DESC 
         LIMIT 1
       `;
-      const packResult = await client.query(packQuery, [storeId]);
+      const packResult = await client.query(packQuery, [actualStoreId]);
       
       if (packResult.rowCount === 0) {
         return reply.code(404).send({ status: 'error', message: 'No tienes un pack configurado.' });
@@ -464,7 +495,7 @@ export default async function merchantRoutes(fastify, options) {
         FROM public.orders 
         WHERE pack_id = $1 AND store_id = $2 AND status IN ('PAGADO', 'RECOGIDO')
       `;
-      const soldResult = await client.query(soldQuery, [pack.id, storeId]);
+      const soldResult = await client.query(soldQuery, [pack.id, actualStoreId]);
       const soldUnits = parseInt(soldResult.rows[0].count, 10);
 
       // Verificamos si hay stock en Redis para determinar el estado visual
