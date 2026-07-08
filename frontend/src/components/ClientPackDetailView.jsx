@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Heart, Clock, Star } from 'lucide-react';
 import apiClient from '../api/apiClient';
+import Map, { Marker } from 'react-map-gl/mapbox';
+import 'mapbox-gl/dist/mapbox-gl.css';
+
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const ClientPackDetailView = () => {
   const location = useLocation();
@@ -111,11 +115,10 @@ const ClientPackDetailView = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white font-sans pb-24 relative w-full">
-      <div className="lg:grid lg:grid-cols-2 lg:min-h-screen">
-        
-        {/* Columna Izquierda: Imagen (Fija en desktop) */}
-        <div className="h-64 lg:h-screen lg:sticky lg:top-0 relative w-full bg-gray-100">
+    <div className="min-h-screen bg-white font-sans pb-24 relative w-full lg:flex">
+      
+      {/* Columna Izquierda: Imagen (Fija en desktop) */}
+      <div className="h-64 lg:h-screen lg:fixed lg:top-0 lg:left-0 lg:w-1/2 relative w-full bg-gray-100 z-10">
           <div 
             className="w-full h-full bg-cover bg-center"
             style={{ backgroundImage: `url(${imageUrl})` }}
@@ -137,13 +140,16 @@ const ClientPackDetailView = () => {
           </button>
 
           {/* Logotipo Solapado */}
-          <div className="w-20 h-20 bg-white rounded-full absolute -bottom-10 lg:bottom-10 left-6 border-4 border-white shadow-md overflow-hidden flex items-center justify-center z-10">
+          <div className="w-20 h-20 bg-white rounded-full absolute -bottom-10 lg:bottom-10 left-6 border-4 border-white shadow-md overflow-hidden flex items-center justify-center z-20">
             <img src={imageUrl} alt="Logo" className="w-full h-full object-cover" />
           </div>
         </div>
 
+        {/* Spacer para escritorio para no colapsar la columna fija */}
+        <div className="hidden lg:block lg:w-1/2 shrink-0"></div>
+
         {/* Columna Derecha: Contenido */}
-        <div className="flex flex-col pb-32 lg:pb-0">
+        <div className="flex flex-col pb-32 lg:pb-0 w-full lg:w-1/2 relative z-0">
           {/* 2. Sección de Identidad y Ventana de Recogida */}
       <div className="px-6 pt-14 pb-6">
         <h3 className="text-gray-700 font-medium text-lg">{pack.store_name}</h3>
@@ -203,20 +209,33 @@ const ClientPackDetailView = () => {
         <div>
           <h3 className="text-xl font-bold text-gray-900 mb-4">Ubicación</h3>
           <a 
-            href={`https://maps.google.com/?q=${pack.location_lat || ''},${pack.location_lng || ''}`} 
+            href={`https://maps.google.com/?q=${pack.location_lat || 14.6349},${pack.location_lng || -90.5069}`} 
             target="_blank" 
             rel="noopener noreferrer"
             className="block w-full h-40 bg-gray-200 rounded-xl mb-3 overflow-hidden border border-gray-100 relative hover:opacity-90 transition-opacity cursor-pointer group"
           >
-            {/* Mapa Estático Simulado */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 group-hover:bg-gray-200 transition-colors">
-               <span className="text-gray-600 font-bold mb-1">Abrir en Google Maps</span>
-               <span className="text-gray-400 font-medium text-sm">Ver ruta hacia la sucursal</span>
+            <Map
+              longitude={pack.location_lng || -90.5069}
+              latitude={pack.location_lat || 14.6349}
+              zoom={14}
+              mapStyle="mapbox://styles/mapbox/light-v11"
+              mapboxAccessToken={MAPBOX_TOKEN}
+              interactive={false}
+            >
+              <Marker 
+                longitude={pack.location_lng || -90.5069} 
+                latitude={pack.location_lat || 14.6349}
+                anchor="center"
+              >
+                <div className="w-5 h-5 bg-green-500 rounded-full border-2 border-white shadow-md"></div>
+              </Marker>
+            </Map>
+            <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-colors flex flex-col items-center justify-center opacity-0 group-hover:opacity-100">
+               <span className="text-white font-bold bg-black/60 px-4 py-2 rounded-full mb-1 backdrop-blur-sm">Abrir en Google Maps</span>
             </div>
           </a>
           <p className="text-gray-600 font-medium">{pack.address || 'Dirección de la sucursal'}</p>
         </div>
-      </div>
       </div>
 
       {/* 4. Barra Inferior de Acción (Sticky Bottom Bar) */}
