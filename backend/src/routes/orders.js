@@ -1,9 +1,13 @@
 import crypto from 'crypto';
+import Stripe from 'stripe';
 
 /**
  * Rutas relacionadas a los Pedidos y Reservas Definitivas
  */
 export default async function orderRoutes(fastify, options) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2023-10-16',
+  });
   
   // Endpoint para reservar temporalmente un pack sorpresa y asentar orden PENDIENTE
   fastify.post('/api/orders/reserve', {
@@ -158,7 +162,61 @@ export default async function orderRoutes(fastify, options) {
         await fastify.redis.incrby(stockKey, exp.quantity);
       }
 
-      // Unimos la tabla orders con surprise_packs y profiles (comercios) 
+      // 2. Active Sync con Stripe: Buscar ordenes PENDIENTES que no han expirado
+      // Para auto-asentar si el webhook o el verify-session fallaron
+      const { rows: pendingRows } = await client.query(`
+        SELECT id, pack_id, store_id, quantity, client_id 
+        FROM public.orders 
+        WHERE client_id = $1 
+          AND status = 'PENDIENTE'
+      `, [client_id]);
+
+      for (const pending of pendingRows) {
+        try {
+          const searchResult = await stripe.checkout.sessions.search({
+            query: `metadata['order_id']:'${pending.id}'`,
+            limit: 1
+          });
+          
+          if (searchResult.data.length > 0) {
+            const session = searchResult.data[0];
+            if (session.payment_status === 'paid') {
+              // Asentar orden!
+              const qr_code_secret = fastify.jwt.sign({
+                client_id: pending.client_id,
+                pack_id: pending.pack_id,
+                store_id: pending.store_id,
+                order_id: pending.id,
+                nonce: crypto.randomUUID(),
+                purpose: 'pickup_qr'
+              });
+
+              const orderResult = await client.query(`
+                UPDATE public.orders 
+                SET status = 'PAGADO', qr_code_secret = $1 
+                WHERE id = $2 AND status = 'PENDIENTE'
+                RETURNING id
+              `, [qr_code_secret, pending.id]);
+
+              if (orderResult.rowCount > 0) {
+                await client.query(`
+                  UPDATE public.surprise_packs 
+                  SET available_quantity = available_quantity - $1 
+                  WHERE id = $2 AND available_quantity >= $1 
+                `, [pending.quantity, pending.pack_id]);
+                
+                const lockKey = `reservation:${pending.pack_id}:${pending.client_id}`;
+                await fastify.redis.del(lockKey);
+                fastify.log.info(`[Active Sync] Orden ${pending.id} pagada y sincronizada.`);
+              }
+            }
+          }
+        } catch (e) {
+          fastify.log.error(`[Active Sync Error] No se pudo chequear Stripe para orden ${pending.id}: ${e.message}`);
+        }
+      }
+
+      // 3. Unimos la tabla orders con surprise_packs y profiles (comercios) 
       // para obtener el nombre, dirección y horarios de recogida.
       const query = `
         SELECT 
