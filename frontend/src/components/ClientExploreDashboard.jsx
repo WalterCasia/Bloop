@@ -196,6 +196,15 @@ const ClientExploreDashboard = () => {
     setHoveredStoreId(pack.pack_id);
   };
 
+  // Forzar redimensionamiento del mapa al cambiar a pantalla completa
+  useEffect(() => {
+    if (mapRef.current) {
+      // Pequeño delay para permitir que el DOM cambie su tamaño primero
+      setTimeout(() => mapRef.current.resize(), 50);
+      setTimeout(() => mapRef.current.resize(), 300); // Y otro para animaciones de layout
+    }
+  }, [isFullScreen]);
+
   // Validación Crítica de Mapbox Token
   if (!MAPBOX_TOKEN) {
     return (
