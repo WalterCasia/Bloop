@@ -3,7 +3,7 @@ import { useClientOrders } from '../hooks/useClientOrders';
 import { MapPin, Clock, QrCode, XCircle, Package } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import axios from 'axios';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 
 // Componente para manejar el reloj regresivo de 10 min y expirar visualmente
 function ReservedOrderCard({ order }) {
