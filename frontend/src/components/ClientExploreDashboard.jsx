@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Map, { NavigationControl, GeolocateControl } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Filter, Map as MapIcon, List, AlertCircle } from 'lucide-react';
+import { Filter, Map as MapIcon, List, AlertCircle, Maximize, Minimize, X } from 'lucide-react';
 import apiClient from '../api/apiClient';
 import SurprisePackCard from './SurprisePackCard';
 import MapPricePill from './MapPricePills';
@@ -44,8 +44,13 @@ const ClientExploreDashboard = () => {
   const [error, setError] = useState(null);
   const [hoveredStoreId, setHoveredStoreId] = useState(null);
   
-  // Ref para hacer scroll a la tarjeta
+  // Estados de Fullscreen y Store Seleccionado
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [selectedStore, setSelectedStore] = useState(null);
+  
+  // Ref para hacer scroll a la tarjeta y mapa
   const cardRefs = useRef({});
+  const mapRef = useRef(null);
   const debounceTimer = useRef(null);
 
   // Obtener la ubicación del usuario si está permitida (al inicio)
@@ -173,18 +178,22 @@ const ClientExploreDashboard = () => {
   };
 
   const handleMarkerClick = (pack) => {
-    // Si estamos en móvil, pasamos a vista de lista
-    if (window.innerWidth < 1024) {
-      setViewMode('list');
+    setSelectedStore(pack);
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [pack.location_lng || -90.5069, pack.location_lat || 14.6349],
+        zoom: 15,
+        duration: 800
+      });
     }
-    
-    // Smooth scroll a la tarjeta
-    setTimeout(() => {
-      const cardElement = cardRefs.current[pack.pack_id];
-      if (cardElement) {
-        cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Mantener scroll si no está en fullscreen
+    if (!isFullScreen) {
+      const el = cardRefs.current[pack.pack_id];
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-    }, 100);
+    }
+    setHoveredStoreId(pack.pack_id);
   };
 
   // Validación Crítica de Mapbox Token
@@ -280,15 +289,31 @@ const ClientExploreDashboard = () => {
             COLUMNA DERECHA: CONTENEDOR STICKY EN RECUADRO (45%)
             ========================================= */}
         <div 
-          className={`hidden lg:block lg:w-[45%] h-full sticky top-0 p-4 pl-0 ${viewMode === 'list' ? 'hidden lg:block' : 'block w-full'}`}
+          className={
+            isFullScreen 
+              ? "fixed inset-0 z-[60] w-full h-screen bg-gray-100" 
+              : `hidden lg:block lg:w-[45%] h-full sticky top-0 p-4 pl-0 ${viewMode === 'list' ? 'hidden lg:block' : 'block w-full'}`
+          }
         >
           {/* El Recuadro del Mapa (Tarjeta Flotante estilo Airbnb) */}
-          <div className="w-full h-full rounded-3xl overflow-hidden border border-gray-200 shadow-inner relative bg-gray-100">
+          <div className={`w-full h-full relative bg-gray-100 ${!isFullScreen ? 'rounded-3xl overflow-hidden border border-gray-200 shadow-inner' : ''}`}>
+            
+            {/* Botón de Expansión Flotante */}
+            <div className="absolute top-4 left-4 z-10 hidden lg:block">
+              <button 
+                onClick={() => setIsFullScreen(!isFullScreen)}
+                className="bg-white shadow-md border border-gray-200 p-2 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 flex items-center justify-center"
+              >
+                {isFullScreen ? <Minimize size={20} /> : <Maximize size={20} />}
+              </button>
+            </div>
+
             <Map
+              ref={mapRef}
               {...viewState}
               onMove={onMapMove}
               onMoveEnd={onMapMoveEnd}
-              mapStyle="mapbox://styles/mapbox/streets-v12"
+              mapStyle="mapbox://styles/mapbox/light-v11"
               mapboxAccessToken={MAPBOX_TOKEN}
               style={{ width: '100%', height: '100%' }}
             >
@@ -307,6 +332,38 @@ const ClientExploreDashboard = () => {
                 <GeolocateControl position="top-right" style={{ margin: 0, position: 'relative' }} />
               </div>
             </Map>
+
+            {/* Tarjeta Flotante (Slide-up Card) estilo Airbnb */}
+            {selectedStore && (
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-11/12 max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden p-0 z-20 transition-all duration-300">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setSelectedStore(null); }}
+                  className="absolute top-3 right-3 bg-white/80 backdrop-blur-md rounded-full p-1 hover:bg-gray-100 z-10 transition-colors"
+                >
+                  <X size={18} className="text-gray-700" />
+                </button>
+                <div 
+                  className="cursor-pointer"
+                  onClick={() => navigate(`/packs/${selectedStore.pack_id}`)}
+                >
+                  <div className="h-32 bg-gray-200 w-full relative">
+                    <img 
+                      src={selectedStore.image_url || selectedStore.cover_url || 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80'} 
+                      alt={selectedStore.store_name} 
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute bottom-3 right-3 bg-white px-2 py-1 rounded-lg shadow font-bold text-gray-900 text-sm">
+                      {new Intl.NumberFormat('es-GT', { style: 'currency', currency: 'GTQ' }).format(selectedStore.discounted_price)}
+                    </div>
+                  </div>
+                  <div className="p-4 bg-white">
+                    <h4 className="font-bold text-gray-900 truncate">{selectedStore.store_name}</h4>
+                    <p className="text-sm text-gray-600 truncate">{selectedStore.title}</p>
+                    <p className="text-xs text-gray-400 mt-1">A {selectedStore.distance_km ? Number(selectedStore.distance_km).toFixed(1) : '2.5'} km de ti</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Sincronización Visual y Estados de Carga dentro del Recuadro */}
             {loading && (
