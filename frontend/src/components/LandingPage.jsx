@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Search, MapPin, Leaf, TrendingDown, Store, Star, ArrowRight } from 'lucide-react';
+import { Search, MapPin, Leaf, TrendingDown, Store, Star, ArrowRight, Smartphone, ShoppingBag } from 'lucide-react';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -33,6 +33,18 @@ const LandingPage = () => {
     }
   }, [user, navigate]);
 
+  const handleExploreClick = () => {
+    if (user) {
+      navigate('/explore');
+    } else {
+      navigate('/auth/client');
+    }
+  };
+
+  const scrollToSection = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-white font-sans text-gray-900">
       {/* 1. Barra de Navegación Global */}
@@ -40,9 +52,9 @@ const LandingPage = () => {
         <div className="flex items-center gap-8">
           <div className="text-green-600 font-bold text-2xl tracking-tight cursor-pointer">Bloop.</div>
           <nav className="hidden md:flex items-center gap-6">
-            <button className="text-sm font-medium text-gray-600 hover:text-black transition-colors">Cómo funciona</button>
-            <button className="text-sm font-medium text-gray-600 hover:text-black transition-colors">Explorar mapa</button>
-            <button className="text-sm font-medium text-gray-600 hover:text-black transition-colors">Impacto ambiental</button>
+            <button onClick={() => scrollToSection('como-funciona')} className="text-sm font-medium text-gray-600 hover:text-black transition-colors">Cómo funciona</button>
+            <button onClick={handleExploreClick} className="text-sm font-medium text-gray-600 hover:text-black transition-colors">Explorar mapa</button>
+            <button onClick={() => scrollToSection('impacto-ambiental')} className="text-sm font-medium text-gray-600 hover:text-black transition-colors">Impacto ambiental</button>
           </nav>
         </div>
         <div className="flex items-center gap-6">
@@ -117,6 +129,59 @@ const LandingPage = () => {
           </div>
         </div>
       </main>
+
+      {/* Sección Cómo Funciona */}
+      <section id="como-funciona" className="py-24 px-8 max-w-7xl mx-auto">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight">Cómo funciona Bloop</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+          <div className="flex flex-col items-center text-center">
+            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+              <MapPin className="w-10 h-10 text-gray-900" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">1. Encuentra comida</h3>
+            <p className="text-gray-500 font-medium leading-relaxed">
+              Explora el mapa y descubre restaurantes, panaderías y cafeterías cerca de ti con excedentes diarios deliciosos.
+            </p>
+          </div>
+          <div className="flex flex-col items-center text-center">
+            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+              <Smartphone className="w-10 h-10 text-gray-900" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">2. Reserva y paga</h3>
+            <p className="text-gray-500 font-medium leading-relaxed">
+              Asegura tu pack sorpresa directamente en la app con un descuento increíble antes de que se agote.
+            </p>
+          </div>
+          <div className="flex flex-col items-center text-center">
+            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+              <ShoppingBag className="w-10 h-10 text-gray-900" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">3. Recoge y salva</h3>
+            <p className="text-gray-500 font-medium leading-relaxed">
+              Muestra tu código en el local, recoge tu comida y disfruta sabiendo que ayudaste al planeta.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Sección Impacto Global */}
+      <section id="impacto-ambiental" className="bg-green-900 text-white py-24 px-8">
+        <div className="max-w-7xl mx-auto text-center">
+          <h2 className="text-4xl font-extrabold mb-16 tracking-tight">Nuestro Impacto Global</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            <div className="flex flex-col items-center">
+              <span className="text-6xl lg:text-7xl font-black text-green-400 mb-4 tracking-tighter">35,400</span>
+              <span className="text-xl font-medium text-green-100">Kg de CO2 evitados</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="text-6xl lg:text-7xl font-black text-white mb-4 tracking-tighter">14,200</span>
+              <span className="text-xl font-medium text-green-100">Packs Salvados</span>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* 3. Cuadrícula de Propuesta de Valor (Bento Box) */}
       <section className="bg-gray-50/50 py-20 px-8">
