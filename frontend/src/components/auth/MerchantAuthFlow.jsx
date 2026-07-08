@@ -164,6 +164,22 @@ const MerchantAuthFlow = () => {
           await supabase.auth.signOut();
           throw new Error('Esta cuenta pertenece a un cliente. Por favor ingresa a través del Portal para Clientes.');
         }
+
+        // Validar si hay un código pendiente por canjear (en caso de que requiera confirmar email)
+        const pendingCode = localStorage.getItem('pending_invite_code');
+        if (pendingCode && signInData.session) {
+          try {
+            await apiClient.post('/api/merchant/invitations/redeem', 
+              { code: pendingCode.toUpperCase() },
+              { headers: { Authorization: `Bearer ${signInData.session.access_token}` } }
+            );
+            localStorage.removeItem('pending_invite_code');
+          } catch (invError) {
+            console.error('Error al canjear código pendiente tras iniciar sesión:', invError);
+            localStorage.removeItem('pending_invite_code');
+            throw new Error('El código de invitación expiró o es inválido. Pide uno nuevo a tu gerente.');
+          }
+        }
       } else {
         if (!inviteCode || inviteCode.length !== 6) {
           throw new Error('El código de invitación debe tener 6 caracteres.');
@@ -206,7 +222,12 @@ const MerchantAuthFlow = () => {
             setIsRedeeming(false);
             navigate('/merchant/dashboard', { replace: true });
           } else {
+            // Guardar código pendiente para cuando inicie sesión tras verificar su correo
+            localStorage.setItem('pending_invite_code', inviteCode.toUpperCase());
             setIsRedeeming(false);
+            // Sobreescribir el error para ser más explícitos
+            setError("Cuenta creada. Por favor verifica tu correo para continuar y luego inicia sesión.");
+            return;
           }
         } catch (invError) {
           setIsRedeeming(false);
