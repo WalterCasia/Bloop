@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { CheckCircle2, Store, Clock, Package, Receipt } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
-import axios from 'axios';
+import apiClient from '../api/apiClient';
 
 export default function OrderConfirmationView() {
   const { orderId } = useParams();
@@ -16,10 +15,7 @@ export default function OrderConfirmationView() {
     // Asumiendo que podemos buscarlo en el endpoint de cliente
     const fetchOrder = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-        const res = await axios.get(`${backendUrl}/api/customer/orders`, { headers });
+        const res = await apiClient.get('/api/customer/orders');
         
         if (res.data?.status === 'success') {
           const found = res.data.orders.find(o => o.id === orderId);

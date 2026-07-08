@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import axios from 'axios';
+import apiClient from '../api/apiClient';
 
 export function useClientOrders() {
   const [orders, setOrders] = useState([]);
@@ -12,17 +11,7 @@ export function useClientOrders() {
       setLoading(true);
       setError(null);
       
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const headers = {};
-      if (session?.access_token) {
-         headers.Authorization = `Bearer ${session.access_token}`;
-      }
-
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-      const response = await axios.get(`${backendUrl}/api/customer/orders`, {
-        headers
-      });
+      const response = await apiClient.get('/api/customer/orders');
 
       if (response.data?.status === 'success') {
         setOrders(response.data.orders || []);

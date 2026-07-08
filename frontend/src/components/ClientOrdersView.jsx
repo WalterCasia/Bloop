@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useClientOrders } from '../hooks/useClientOrders';
 import { MapPin, Clock, QrCode, XCircle, Package } from 'lucide-react';
 import QRCode from 'react-qr-code';
-import axios from 'axios';
-import { supabase } from '../lib/supabaseClient';
+import apiClient from '../api/apiClient';
 
 // Componente para manejar el reloj regresivo de 10 min y expirar visualmente
 function ReservedOrderCard({ order }) {
@@ -34,13 +33,9 @@ function ReservedOrderCard({ order }) {
   const handlePay = async () => {
     if (isExpired) return;
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
-
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-      const res = await axios.post(`${backendUrl}/api/payments/create-checkout-session`, {
+      const res = await apiClient.post('/api/payments/create-checkout-session', {
         order_id: order.id
-      }, { headers });
+      });
       
       if (res.data.sessionUrl) {
         window.location.href = res.data.sessionUrl;
