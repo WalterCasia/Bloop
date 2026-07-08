@@ -141,6 +141,23 @@ export default async function orderRoutes(fastify, options) {
     const client = await fastify.pg.connect();
     
     try {
+      await client.query('BEGIN');
+
+      // 1. Lazy Evaluation: Cancelar reservas expiradas y devolver stock
+      const { rows: expiredRows } = await client.query(`
+        SELECT id, pack_id, quantity 
+        FROM public.orders 
+        WHERE client_id = $1 
+          AND status = 'PENDIENTE' 
+          AND created_at < NOW() - INTERVAL '10 minutes'
+      `, [client_id]);
+
+      for (const exp of expiredRows) {
+        await client.query(`UPDATE public.orders SET status = 'CANCELADO' WHERE id = $1`, [exp.id]);
+        const stockKey = `pack:${exp.pack_id}:stock`;
+        await fastify.redis.incrby(stockKey, exp.quantity);
+      }
+
       // Unimos la tabla orders con surprise_packs y profiles (comercios) 
       // para obtener el nombre, dirección y horarios de recogida.
       const query = `
@@ -165,6 +182,7 @@ export default async function orderRoutes(fastify, options) {
       `;
       
       const { rows } = await client.query(query, [client_id]);
+      await client.query('COMMIT');
 
       return reply.code(200).send({
         status: 'success',
@@ -172,6 +190,7 @@ export default async function orderRoutes(fastify, options) {
       });
 
     } catch (error) {
+      await client.query('ROLLBACK');
       fastify.log.error(error);
       return reply.code(500).send({ 
         error: 'Internal Server Error', 
