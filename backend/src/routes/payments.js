@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import crypto from 'crypto';
 
 export default async function paymentRoutes(fastify, options) {
   
@@ -85,8 +86,8 @@ export default async function paymentRoutes(fastify, options) {
             quantity: orderInfo.quantity,
           },
         ],
-        // Redirección a la vista de confirmación del pedido específico
-        success_url: `${frontendUrl}/order-confirmation/${order_id}`,
+        // Redirección a la vista de confirmación con el session_id para verificación activa
+        success_url: `${frontendUrl}/order-confirmation/${order_id}?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${frontendUrl}/customer/orders`,
       });
 
@@ -103,6 +104,89 @@ export default async function paymentRoutes(fastify, options) {
       });
     } finally {
       client.release();
+    }
+  });
+
+  // Endpoint de respaldo para verificar el pago activamente desde el frontend
+  // Útil si los webhooks fallan o no están configurados en entornos locales/Vercel
+  fastify.post('/api/payments/verify-session', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          session_id: { type: 'string' }
+        },
+        required: ['session_id']
+      }
+    }
+  }, async (request, reply) => {
+    const { session_id } = request.body;
+    
+    try {
+      const session = await stripe.checkout.sessions.retrieve(session_id);
+      
+      if (session.payment_status === 'paid') {
+        const { order_id, client_id, pack_id, store_id, quantity } = session.metadata;
+        const qty = parseInt(quantity, 10);
+        
+        const lockKey = `reservation:${pack_id}:${client_id}`;
+        const client = await fastify.pg.connect();
+
+        try {
+          await client.query('BEGIN');
+
+          // Generación del Código QR Encriptado
+          const qr_code_secret = fastify.jwt.sign({
+            client_id,
+            pack_id,
+            store_id,
+            order_id,
+            nonce: crypto.randomUUID(),
+            purpose: 'pickup_qr'
+          });
+
+          // Intentamos actualizar la orden. Si rowCount es 0, el webhook ya lo hizo o no existe.
+          const orderResult = await client.query(`
+            UPDATE public.orders 
+            SET status = 'PAGADO', qr_code_secret = $1 
+            WHERE id = $2 AND status = 'PENDIENTE'
+            RETURNING id
+          `, [qr_code_secret, order_id]);
+
+          if (orderResult.rowCount > 0) {
+            // Solo descontamos inventario si nosotros fuimos quienes marcamos como PAGADO
+            const updateResult = await client.query(`
+              UPDATE public.surprise_packs 
+              SET available_quantity = available_quantity - $1 
+              WHERE id = $2 AND available_quantity >= $1 
+            `, [qty, pack_id]);
+
+            if (updateResult.rowCount === 0) {
+              throw new Error('STOCK_RACE_CONDITION_AFTER_PAYMENT');
+            }
+
+            await client.query('COMMIT');
+            await fastify.redis.del(lockKey);
+            fastify.log.info(`✅ Pago confirmado por Verificación Activa para la orden ${order_id}`);
+          } else {
+            await client.query('ROLLBACK');
+          }
+
+          return reply.code(200).send({ status: 'success', message: 'Verificación completada.' });
+        } catch (error) {
+          await client.query('ROLLBACK');
+          fastify.log.error(`Fallo en Verificación Activa: ${error.message}`);
+          return reply.code(500).send({ error: 'Fallo al procesar el asentamiento del pedido.' });
+        } finally {
+          client.release();
+        }
+      }
+      
+      return reply.code(400).send({ status: 'pending', message: 'El pago aún no se ha completado.' });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ status: 'error', message: 'Error verificando la sesión.' });
     }
   });
 }

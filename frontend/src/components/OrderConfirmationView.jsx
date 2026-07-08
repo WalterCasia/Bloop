@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { CheckCircle2, Store, Clock, Package, Receipt } from 'lucide-react';
 import apiClient from '../api/apiClient';
@@ -7,16 +7,26 @@ import apiClient from '../api/apiClient';
 export default function OrderConfirmationView() {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [orderData, setOrderData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch individual order info from the backend or list
-    // Asumiendo que podemos buscarlo en el endpoint de cliente
-    const fetchOrder = async () => {
+    const verifyAndFetchOrder = async () => {
       try {
-        const res = await apiClient.get('/api/customer/orders');
+        const sessionId = searchParams.get('session_id');
         
+        // Si hay sessionId, intentamos forzar la verificación activa (respaldo al webhook)
+        if (sessionId) {
+          try {
+            await apiClient.post('/api/payments/verify-session', { session_id: sessionId });
+          } catch (e) {
+            console.error('La verificación activa falló o ya estaba procesada', e);
+          }
+        }
+
+        // Recuperar la orden
+        const res = await apiClient.get('/api/customer/orders');
         if (res.data?.status === 'success') {
           const found = res.data.orders.find(o => o.id === orderId);
           if (found) {
@@ -30,8 +40,8 @@ export default function OrderConfirmationView() {
       }
     };
     
-    if (orderId) fetchOrder();
-  }, [orderId]);
+    if (orderId) verifyAndFetchOrder();
+  }, [orderId, searchParams]);
 
   if (loading) {
     return (
