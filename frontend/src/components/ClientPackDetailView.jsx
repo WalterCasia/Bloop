@@ -111,37 +111,40 @@ const ClientPackDetailView = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white font-sans pb-24 relative max-w-2xl mx-auto shadow-sm border-x border-gray-100">
-      
-      {/* 1. Cabecera Visual (Header Image & Nav) */}
-      <div className="h-64 relative w-full">
-        <div 
-          className="w-full h-full bg-cover bg-center"
-          style={{ backgroundImage: `url(${imageUrl})` }}
-        />
-        {/* Overlay superior oscuro sutil para legibilidad */}
-        <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-black/50 to-transparent"></div>
+    <div className="min-h-screen bg-white font-sans pb-24 relative w-full">
+      <div className="lg:grid lg:grid-cols-2 lg:min-h-screen">
         
-        {/* Navegación Flotante */}
-        <button 
-          onClick={() => navigate(-1)}
-          className="absolute top-6 left-6 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <button 
-          className="absolute top-6 right-6 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
-        >
-          <Heart className="w-5 h-5" />
-        </button>
+        {/* Columna Izquierda: Imagen (Fija en desktop) */}
+        <div className="h-64 lg:h-screen lg:sticky lg:top-0 relative w-full bg-gray-100">
+          <div 
+            className="w-full h-full bg-cover bg-center"
+            style={{ backgroundImage: `url(${imageUrl})` }}
+          />
+          {/* Overlay superior oscuro sutil para legibilidad */}
+          <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-black/50 to-transparent"></div>
+          
+          {/* Navegación Flotante */}
+          <button 
+            onClick={() => navigate(-1)}
+            className="absolute top-6 left-6 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <button 
+            className="absolute top-6 right-6 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+          >
+            <Heart className="w-5 h-5" />
+          </button>
 
-        {/* Logotipo Solapado */}
-        <div className="w-20 h-20 bg-white rounded-full absolute -bottom-10 left-6 border-4 border-white shadow-md overflow-hidden flex items-center justify-center">
-          <img src={imageUrl} alt="Logo" className="w-full h-full object-cover" />
+          {/* Logotipo Solapado */}
+          <div className="w-20 h-20 bg-white rounded-full absolute -bottom-10 lg:bottom-10 left-6 border-4 border-white shadow-md overflow-hidden flex items-center justify-center z-10">
+            <img src={imageUrl} alt="Logo" className="w-full h-full object-cover" />
+          </div>
         </div>
-      </div>
 
-      {/* 2. Sección de Identidad y Ventana de Recogida */}
+        {/* Columna Derecha: Contenido */}
+        <div className="flex flex-col pb-32 lg:pb-0">
+          {/* 2. Sección de Identidad y Ventana de Recogida */}
       <div className="px-6 pt-14 pb-6">
         <h3 className="text-gray-700 font-medium text-lg">{pack.store_name}</h3>
         <h1 className="text-3xl font-bold text-gray-900 mt-1 mb-3">{pack.title}</h1>
@@ -199,18 +202,25 @@ const ClientPackDetailView = () => {
 
         <div>
           <h3 className="text-xl font-bold text-gray-900 mb-4">Ubicación</h3>
-          <div className="w-full h-40 bg-gray-200 rounded-xl mb-3 overflow-hidden border border-gray-100 relative">
+          <a 
+            href={`https://maps.google.com/?q=${pack.location_lat || ''},${pack.location_lng || ''}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="block w-full h-40 bg-gray-200 rounded-xl mb-3 overflow-hidden border border-gray-100 relative hover:opacity-90 transition-opacity cursor-pointer group"
+          >
             {/* Mapa Estático Simulado */}
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-               <span className="text-gray-400 font-medium">Mapa interactivo de ubicación</span>
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 group-hover:bg-gray-200 transition-colors">
+               <span className="text-gray-600 font-bold mb-1">Abrir en Google Maps</span>
+               <span className="text-gray-400 font-medium text-sm">Ver ruta hacia la sucursal</span>
             </div>
-          </div>
+          </a>
           <p className="text-gray-600 font-medium">{pack.address || 'Dirección de la sucursal'}</p>
         </div>
       </div>
+      </div>
 
       {/* 4. Barra Inferior de Acción (Sticky Bottom Bar) */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-2xl bg-white border-t border-gray-200 p-4 md:px-8 z-50 flex justify-between items-center shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.05)]">
+      <div className="fixed bottom-0 lg:bottom-6 lg:right-6 lg:left-auto lg:rounded-2xl lg:w-96 left-0 w-full bg-white border-t lg:border border-gray-200 p-4 z-50 flex justify-between items-center shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.05)] lg:shadow-xl">
         
         {/* Precios */}
         <div className="flex flex-col">
@@ -252,6 +262,7 @@ const ClientPackDetailView = () => {
           </div>
         ) : null}
 
+      </div>
       </div>
 
     </div>
