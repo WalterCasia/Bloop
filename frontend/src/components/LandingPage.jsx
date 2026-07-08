@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Search, MapPin, Leaf, TrendingDown, Store, Star, ArrowRight, Smartphone, ShoppingBag } from 'lucide-react';
+import MapPreviewSection from './MapPreviewSection';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -165,6 +166,9 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+
+      {/* Mapa de Previsualización (Teaser) */}
+      <MapPreviewSection />
 
       {/* Sección Impacto Global */}
       <section id="impacto-ambiental" className="bg-green-900 text-white py-24 px-8">
