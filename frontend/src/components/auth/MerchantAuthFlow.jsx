@@ -218,9 +218,9 @@ const MerchantAuthFlow = () => {
               { code: inviteCode.toUpperCase() },
               { headers: { Authorization: `Bearer ${session.access_token}` } }
             );
-            // Ahora permitimos la redirección
+            // Ahora permitimos que el useEffect se encargue de la redirección
+            // una vez que el AuthContext se actualice con la sesión.
             setIsRedeeming(false);
-            navigate('/merchant/dashboard', { replace: true });
           } else {
             // Guardar código pendiente para cuando inicie sesión tras verificar su correo
             localStorage.setItem('pending_invite_code', inviteCode.toUpperCase());
