@@ -683,15 +683,12 @@ export default async function merchantRoutes(fastify, options) {
     let imageUrlsArray = [];
     try {
       if (imagesBase64 && imagesBase64.length > 0) {
-        // Subir imágenes concurrentemente
-        const uploadPromises = imagesBase64.map(base64 => 
-          fastify.cloudinary.uploader.upload(base64, {
-            folder: 'bloop_packs',
-            resource_type: 'image'
-          })
-        );
-        const uploadResponses = await Promise.all(uploadPromises);
-        imageUrlsArray = uploadResponses.map(res => res.secure_url);
+        // Subir solo la primera imagen para evitar desbordar el VARCHAR(255) de la BD
+        const uploadResponse = await fastify.cloudinary.uploader.upload(imagesBase64[0], {
+          folder: 'bloop_packs',
+          resource_type: 'image'
+        });
+        imageUrlsArray = [uploadResponse.secure_url];
       }
     } catch (err) {
       fastify.log.error('Error uploading image to Cloudinary:', err);
@@ -752,7 +749,7 @@ export default async function merchantRoutes(fastify, options) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.code(500).send({ error: 'Internal Server Error', message: 'No se pudo crear el pack.' });
+      return reply.code(500).send({ error: 'Internal Server Error', message: `No se pudo crear el pack: ${error.message}` });
     } finally {
       client.release();
     }
