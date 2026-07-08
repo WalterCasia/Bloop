@@ -171,48 +171,53 @@ export default async function orderRoutes(fastify, options) {
           AND status = 'PENDIENTE'
       `, [client_id]);
 
+      // Obtenemos las últimas 100 sesiones de Stripe de una vez para minimizar llamadas a la API
+      let recentSessions = [];
+      if (pendingRows.length > 0) {
+        try {
+          const sessionsResponse = await stripe.checkout.sessions.list({ limit: 100 });
+          recentSessions = sessionsResponse.data;
+        } catch (e) {
+          fastify.log.error(`[Active Sync Error] No se pudieron obtener sesiones de Stripe: ${e.message}`);
+        }
+      }
+
       for (const pending of pendingRows) {
         try {
-          const searchResult = await stripe.checkout.sessions.search({
-            query: `metadata['order_id']:'${pending.id}'`,
-            limit: 1
-          });
+          const session = recentSessions.find(s => s.metadata?.order_id === pending.id);
           
-          if (searchResult.data.length > 0) {
-            const session = searchResult.data[0];
-            if (session.payment_status === 'paid') {
-              // Asentar orden!
-              const qr_code_secret = fastify.jwt.sign({
-                client_id: pending.client_id,
-                pack_id: pending.pack_id,
-                store_id: pending.store_id,
-                order_id: pending.id,
-                nonce: crypto.randomUUID(),
-                purpose: 'pickup_qr'
-              });
+          if (session && session.payment_status === 'paid') {
+            // Asentar orden!
+            const qr_code_secret = fastify.jwt.sign({
+              client_id: pending.client_id,
+              pack_id: pending.pack_id,
+              store_id: pending.store_id,
+              order_id: pending.id,
+              nonce: crypto.randomUUID(),
+              purpose: 'pickup_qr'
+            });
 
-              const orderResult = await client.query(`
-                UPDATE public.orders 
-                SET status = 'PAGADO', qr_code_secret = $1 
-                WHERE id = $2 AND status = 'PENDIENTE'
-                RETURNING id
-              `, [qr_code_secret, pending.id]);
+            const orderResult = await client.query(`
+              UPDATE public.orders 
+              SET status = 'PAGADO', qr_code_secret = $1 
+              WHERE id = $2 AND status = 'PENDIENTE'
+              RETURNING id
+            `, [qr_code_secret, pending.id]);
 
-              if (orderResult.rowCount > 0) {
-                await client.query(`
-                  UPDATE public.surprise_packs 
-                  SET available_quantity = available_quantity - $1 
-                  WHERE id = $2 AND available_quantity >= $1 
-                `, [pending.quantity, pending.pack_id]);
-                
-                const lockKey = `reservation:${pending.pack_id}:${pending.client_id}`;
-                await fastify.redis.del(lockKey);
-                fastify.log.info(`[Active Sync] Orden ${pending.id} pagada y sincronizada.`);
-              }
+            if (orderResult.rowCount > 0) {
+              await client.query(`
+                UPDATE public.surprise_packs 
+                SET available_quantity = available_quantity - $1 
+                WHERE id = $2 AND available_quantity >= $1 
+              `, [pending.quantity, pending.pack_id]);
+              
+              const lockKey = `reservation:${pending.pack_id}:${pending.client_id}`;
+              await fastify.redis.del(lockKey);
+              fastify.log.info(`[Active Sync] Orden ${pending.id} pagada y sincronizada.`);
             }
           }
         } catch (e) {
-          fastify.log.error(`[Active Sync Error] No se pudo chequear Stripe para orden ${pending.id}: ${e.message}`);
+          fastify.log.error(`[Active Sync Error] Fallo al sincronizar orden ${pending.id}: ${e.message}`);
         }
       }
 
