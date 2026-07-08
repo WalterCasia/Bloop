@@ -8,7 +8,7 @@ import { StoreProvider } from './contexts/StoreContext';
 import ClientExploreDashboard from './components/ClientExploreDashboard';
 import CustomerOrders from './components/orders/CustomerOrders';
 import ClientProfileView from './components/ClientProfileView';
-import PackDetail from './components/PackDetail';
+
 import MerchantMainDashboard from './components/MerchantMainDashboard';
 import DailyStockDashboard from './components/DailyStockDashboard';
 import MerchantProfile from './components/merchant/MerchantProfile';
