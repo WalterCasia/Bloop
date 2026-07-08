@@ -20,6 +20,7 @@ const MerchantAuthFlow = () => {
   const [password, setPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isRedeeming, setIsRedeeming] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -35,6 +36,8 @@ const MerchantAuthFlow = () => {
           setSelectedRole('employee');
         });
       } else if (role === 'OWNER' || role === 'STAFF' || role === 'COMERCIO') {
+        if (isRedeeming) return; // Esperar a que termine el canje de código
+
         const onboardingCompleted = user.user_metadata?.onboarding_completed;
         if (!onboardingCompleted) {
           navigate('/onboarding/merchant', { replace: true });
@@ -43,7 +46,7 @@ const MerchantAuthFlow = () => {
         }
       }
     }
-  }, [user, navigate]);
+  }, [user, navigate, isRedeeming]);
 
   const assignMerchantRole = async () => {
     try {
@@ -166,6 +169,8 @@ const MerchantAuthFlow = () => {
           throw new Error('El código de invitación debe tener 6 caracteres.');
         }
 
+        setIsRedeeming(true); // Bloquear redirección automática
+
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
@@ -178,6 +183,7 @@ const MerchantAuthFlow = () => {
         });
         
         if (signUpError) {
+          setIsRedeeming(false);
           if (signUpError.message.includes('User already registered')) {
             throw new Error('Esta cuenta ya existe. Por favor inicia sesión.');
           }
@@ -185,23 +191,30 @@ const MerchantAuthFlow = () => {
         }
         
         if (!signUpData.user) {
+           setIsRedeeming(false);
            throw new Error("Por favor verifica tu correo para continuar.");
         }
 
         try {
-          const { session } = await supabase.auth.getSession();
+          const session = signUpData.session; // Usar la sesión directamente
           if (session) {
             await apiClient.post('/api/merchant/invitations/redeem', 
               { code: inviteCode.toUpperCase() },
               { headers: { Authorization: `Bearer ${session.access_token}` } }
             );
+            // Ahora permitimos la redirección
+            setIsRedeeming(false);
+            navigate('/merchant/dashboard', { replace: true });
+          } else {
+            setIsRedeeming(false);
           }
         } catch (invError) {
+          setIsRedeeming(false);
+          // Si el código falla, deberíamos desloguear al usuario para que no quede "huérfano"
+          await supabase.auth.signOut();
           throw new Error(invError.response?.data?.message || 'Código de invitación inválido o expirado.');
         }
       }
-
-      navigate('/merchant/dashboard', { replace: true });
 
     } catch (err) {
       setError(err.message || 'Error en la autenticación como empleado.');
