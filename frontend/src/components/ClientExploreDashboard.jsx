@@ -241,7 +241,7 @@ const ClientExploreDashboard = () => {
             COLUMNA IZQUIERDA: FEED DE LISTADO (55%)
             ========================================= */}
         <div 
-          className={`w-full lg:w-[55%] overflow-y-auto px-6 py-4 ${viewMode === 'map' ? 'hidden lg:block' : 'block'}`}
+          className={`w-full lg:w-[55%] overflow-y-auto px-6 py-4 ${viewMode === 'map' ? 'hidden lg:block' : 'block'} ${isFullScreen ? '!hidden' : ''}`}
         >
           {loading ? (
             <div className="flex flex-col items-center justify-center h-48">
@@ -291,12 +291,12 @@ const ClientExploreDashboard = () => {
         <div 
           className={
             isFullScreen 
-              ? "fixed inset-0 z-[60] w-full h-screen bg-gray-100" 
+              ? "w-full h-full sticky top-0 p-4" 
               : `hidden lg:block lg:w-[45%] h-full sticky top-0 p-4 pl-0 ${viewMode === 'list' ? 'hidden lg:block' : 'block w-full'}`
           }
         >
           {/* El Recuadro del Mapa (Tarjeta Flotante estilo Airbnb) */}
-          <div className={`w-full h-full relative bg-gray-100 ${!isFullScreen ? 'rounded-3xl overflow-hidden border border-gray-200 shadow-inner' : ''}`}>
+          <div className={`w-full h-full relative bg-gray-100 rounded-3xl overflow-hidden border border-gray-200 shadow-inner`}>
             
             {/* Botón de Expansión Flotante */}
             <div className="absolute top-4 left-4 z-10 hidden lg:block">
@@ -344,7 +344,7 @@ const ClientExploreDashboard = () => {
                 </button>
                 <div 
                   className="cursor-pointer"
-                  onClick={() => navigate(`/packs/${selectedStore.pack_id}`)}
+                  onClick={() => navigate(`/packs/${selectedStore.pack_id}`, { state: { pack: selectedStore } })}
                 >
                   <div className="h-32 bg-gray-200 w-full relative">
                     <img 
