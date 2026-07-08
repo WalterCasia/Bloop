@@ -26,6 +26,7 @@ import ClientOnboardingWizard from './components/ClientOnboardingWizard';
 import ClientPreferencesView from './components/ClientPreferencesView';
 import MerchantStoreWizard from './components/auth/MerchantStoreWizard';
 import SurprisePackTemplateEditor from './components/SurprisePackTemplateEditor';
+import ClientPackDetailView from './components/ClientPackDetailView';
 import MerchantDashboardLayout from './components/merchant/MerchantDashboardLayout';
 import UnderConstructionView from './components/merchant/UnderConstructionView';
 import MerchantOrdersView from './components/merchant/MerchantOrdersView';
@@ -171,7 +172,7 @@ const App = () => {
               path="/packs/:id" 
               element={
                 <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
-                  <PackDetail />
+                  <ClientPackDetailView />
                 </ProtectedRoute>
               } 
             />
