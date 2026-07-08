@@ -28,6 +28,7 @@ const StoreBasicInfoStep = ({ data, onChange, onValidationChange }) => {
             <input
               type="text"
               value={storeName}
+              maxLength={50}
               onChange={(e) => onChange({ storeName: e.target.value })}
               className="appearance-none block w-full pl-10 pr-3 py-4 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-black sm:text-lg transition-colors"
               placeholder="Ej. Panadería Doña María"
