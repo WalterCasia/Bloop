@@ -42,7 +42,7 @@ const ClientExploreDashboard = () => {
   const [packs, setPacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [hoveredStoreId, setHoveredStoreId] = useState(null);
+  const [hoveredPackId, setHoveredPackId] = useState(null);
   
   // Estados de Fullscreen y Store Seleccionado
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -193,7 +193,7 @@ const ClientExploreDashboard = () => {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }
-    setHoveredStoreId(pack.pack_id);
+    setHoveredPackId(pack.pack_id);
   };
 
   // Forzar redimensionamiento del mapa al cambiar a pantalla completa
@@ -284,9 +284,9 @@ const ClientExploreDashboard = () => {
                 >
                   <SurprisePackCard 
                     pack={pack}
-                    isHovered={hoveredStoreId === pack.store_id}
-                    onMouseEnter={() => setHoveredStoreId(pack.store_id)}
-                    onMouseLeave={() => setHoveredStoreId(null)}
+                    isHovered={hoveredPackId === pack.pack_id}
+                    onMouseEnter={() => setHoveredPackId(pack.pack_id)}
+                    onMouseLeave={() => setHoveredPackId(null)}
                   />
                 </div>
               ))}
@@ -330,7 +330,7 @@ const ClientExploreDashboard = () => {
                 <MapPricePill 
                   key={pack.pack_id} 
                   pack={pack} 
-                  isHovered={hoveredStoreId === pack.store_id}
+                  isHovered={hoveredPackId === pack.pack_id}
                   onClick={handleMarkerClick}
                 />
               ))}
