@@ -133,15 +133,65 @@ const ClientExploreDashboard = () => {
   const filteredPacks = packs.filter(pack => {
     if (activeFilter === 'Todos') return true;
     
-    // Filtros de prueba basados en el título o descripción, ya que el store_type no viene del API por defecto
-    const title = pack.title.toLowerCase();
-    if (activeFilter === 'Panadería y Pastelería') return title.includes('pan') || title.includes('pastel') || title.includes('dulce');
-    if (activeFilter === 'Restaurantes') return title.includes('menú') || title.includes('almuerzo') || title.includes('cena');
-    if (activeFilter === 'Supermercados') return title.includes('despensa') || title.includes('super') || title.includes('abarrote');
-    if (activeFilter === 'Vegano/Vegetariano') return title.includes('vegan') || title.includes('vegetariano');
+    // Fechas de referencia para cálculos (Hoy y Mañana a medianoche local)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    // Para Recogida Hoy / Mañana se requeriría procesar pack.pickup_start_time
-    // Como simplificación de UI, devolvemos todo si no coincide
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const dayAfterTomorrow = new Date(tomorrow);
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+
+    const pickupStart = new Date(pack.pickup_start_time);
+    
+    // Filtros de Tiempo
+    if (activeFilter === 'Recogida Hoy') {
+      return pickupStart >= today && pickupStart < tomorrow;
+    }
+    if (activeFilter === 'Recogida Mañana') {
+      return pickupStart >= tomorrow && pickupStart < dayAfterTomorrow;
+    }
+
+    // Búsqueda Inteligente Extendida (Título + Nombre de Tienda + Descripción)
+    const searchableText = `${pack.title || ''} ${pack.store_name || ''} ${pack.description || ''}`.toLowerCase();
+    
+    if (activeFilter === 'Panadería y Pastelería') {
+      return searchableText.includes('pan') || 
+             searchableText.includes('pastel') || 
+             searchableText.includes('dulce') ||
+             searchableText.includes('repostería') ||
+             searchableText.includes('bakery') ||
+             searchableText.includes('postre') ||
+             searchableText.includes('tart');
+    }
+    
+    if (activeFilter === 'Restaurantes') {
+      return searchableText.includes('menú') || 
+             searchableText.includes('almuerzo') || 
+             searchableText.includes('cena') ||
+             searchableText.includes('restaurante') ||
+             searchableText.includes('comida') ||
+             searchableText.includes('bistro') ||
+             searchableText.includes('café');
+    }
+    
+    if (activeFilter === 'Supermercados') {
+      return searchableText.includes('despensa') || 
+             searchableText.includes('super') || 
+             searchableText.includes('abarrote') ||
+             searchableText.includes('mercado') ||
+             searchableText.includes('market');
+    }
+    
+    if (activeFilter === 'Vegano/Vegetariano') {
+      return searchableText.includes('vegan') || 
+             searchableText.includes('vegetariano') ||
+             searchableText.includes('plant') ||
+             searchableText.includes('veggie') ||
+             searchableText.includes('saludable');
+    }
+    
     return true; 
   });
 
