@@ -5,114 +5,128 @@ import crypto from 'crypto';
  */
 export default async function orderRoutes(fastify, options) {
   
-  // Endpoint para confirmar el pago y asentar el pedido
-  fastify.post('/api/orders/confirm', {
-    // Requiere autenticación de cliente activo
+  // Endpoint para reservar temporalmente un pack sorpresa y asentar orden PENDIENTE
+  fastify.post('/api/orders/reserve', {
     onRequest: [fastify.authenticate],
     schema: {
       body: {
         type: 'object',
         properties: {
           pack_id: { type: 'string', format: 'uuid' },
-          quantity: { type: 'integer', minimum: 1, default: 1 },
-          payment_reference: { type: 'string' } // Dato simulado del proveedor de pagos
+          quantity: { type: 'integer', minimum: 1, default: 1 }
         },
-        required: ['pack_id', 'quantity']
+        required: ['pack_id']
       }
     }
   }, async (request, reply) => {
-    const { pack_id, quantity } = request.body;
+    const { pack_id, quantity = 1 } = request.body;
     const client_id = request.user.sub || request.user.id;
 
-    // Clave temporal que indica que este cliente tiene el pack bloqueado
+    // Claves en Redis
+    const stockKey = `pack:${pack_id}:stock`;
     const lockKey = `reservation:${pack_id}:${client_id}`;
 
-    // 1. Verificación del bloqueo temporal en Redis
-    const hasLock = await fastify.redis.get(lockKey);
-    if (!hasLock) {
-      return reply.code(400).send({
-        error: 'Timeout',
-        message: 'La reserva temporal expiró o no existe. Debes reservar nuevamente el pack.'
-      });
-    }
-
-    // Solicitar un cliente del pool de PostgreSQL para manejar una transacción SQL
     const client = await fastify.pg.connect();
-    
+
     try {
-      await client.query('BEGIN');
+      // 1. Operación Atómica en Redis: Decrementar el stock
+      const newStock = await fastify.redis.decrby(stockKey, quantity);
 
-      // 2. Descontar el inventario real en la DB principal y obtener info del pack
-      // Usamos el bloqueo a nivel de fila y chequeo de cantidad atómico
-      const updateResult = await client.query(`
-        UPDATE public.surprise_packs 
-        SET available_quantity = available_quantity - $1 
-        WHERE id = $2 AND available_quantity >= $1 
-        RETURNING store_id, discounted_price
-      `, [quantity, pack_id]);
-
-      // Si no retorna filas, significa que un race condition superó al redis o el backend
-      // fue inconsistente y la DB detiene la venta (Fuente de verdad).
-      if (updateResult.rowCount === 0) {
-        throw new Error('INSUFFICIENT_STOCK');
+      if (newStock < 0) {
+        // Revertir
+        await fastify.redis.incrby(stockKey, quantity);
+        return reply.code(409).send({ 
+          error: 'Agotado', 
+          message: 'No hay stock disponible para esta cantidad.' 
+        });
       }
 
-      const store_id = updateResult.rows[0].store_id;
-      const total_amount = updateResult.rows[0].discounted_price * quantity;
+      // 2. Bloqueo Temporal: Guardar reserva (10 minutos = 600 segundos)
+      const reservationCreated = await fastify.redis.set(lockKey, 'pending_payment', { ex: 600, nx: true });
 
-      // 3. Generar firma encriptada para el Código QR
-      // Utilizamos JWT firmado por el backend para evitar falsificaciones. 
-      // Se inserta un 'nonce' (UUID aleatorio) para asegurar entropía única.
-      const qr_code_secret = fastify.jwt.sign({
-        client_id,
-        pack_id,
-        store_id,
-        nonce: crypto.randomUUID(),
-        purpose: 'pickup_qr'
-      });
+      if (!reservationCreated) {
+        // Ya tiene una reserva activa, devolvemos el stock que acabamos de tomar
+        await fastify.redis.incrby(stockKey, quantity);
+        return reply.code(409).send({ 
+          error: 'Reserva Activa', 
+          message: 'Ya tienes una reserva pendiente para este pack.' 
+        });
+      }
 
-      // 4. Insertar el pedido en estado PAGADO (ya que este endpoint simula confirmación)
+      // 3. Crear el registro en Supabase (PENDIENTE)
+      await client.query('BEGIN');
+      
+      // Obtener info del pack para crear la orden
+      const { rows: packRows } = await client.query(`
+        SELECT store_id, discounted_price FROM public.surprise_packs WHERE id = $1
+      `, [pack_id]);
+
+      if (packRows.length === 0) {
+        throw new Error('PACK_NOT_FOUND');
+      }
+
+      const store_id = packRows[0].store_id;
+      const total_amount = packRows[0].discounted_price * quantity;
+      
+      // Generamos qr_code_secret temporal (se oficializa en webhook)
+      const qr_code_secret = crypto.randomUUID(); 
+
       const insertResult = await client.query(`
         INSERT INTO public.orders 
         (client_id, pack_id, store_id, status, quantity, total_amount, qr_code_secret) 
-        VALUES ($1, $2, $3, 'PAGADO', $4, $5, $6) 
+        VALUES ($1, $2, $3, 'PENDIENTE', $4, $5, $6) 
         RETURNING id, created_at
       `, [client_id, pack_id, store_id, quantity, total_amount, qr_code_secret]);
 
-      // Confirmar la transacción
       await client.query('COMMIT');
+      const order = insertResult.rows[0];
 
-      // 5. Limpieza: Liberar el bloqueo en Redis ya que la compra se concretó exitosamente
-      await fastify.redis.del(lockKey);
+      // 4. Temporizador para cancelar la orden si no se paga en 10 minutos
+      setTimeout(async () => {
+        try {
+          const pgClient = await fastify.pg.connect();
+          const { rows } = await pgClient.query(`
+            SELECT status FROM public.orders WHERE id = $1
+          `, [order.id]);
+          
+          if (rows.length > 0 && rows[0].status === 'PENDIENTE') {
+            await pgClient.query(`
+              UPDATE public.orders SET status = 'CANCELADO' WHERE id = $1
+            `, [order.id]);
+            // Devolver stock a Redis
+            await fastify.redis.incrby(stockKey, quantity);
+            fastify.log.info(`Reserva ${order.id} expirada y cancelada automáticamente.`);
+          }
+          pgClient.release();
+        } catch (e) {
+          fastify.log.error(`Error en timeout de reserva ${order.id}: ${e.message}`);
+        }
+      }, 600 * 1000);
 
-      const newOrder = insertResult.rows[0];
-
-      return reply.code(201).send({
+      return reply.code(200).send({
         status: 'success',
-        message: 'Pedido procesado y confirmado exitosamente.',
+        message: 'Reserva creada. Tienes 10 minutos para pagar.',
         order: {
-          id: newOrder.id,
-          qr_code_secret: qr_code_secret,
-          total_amount,
-          created_at: newOrder.created_at
+          id: order.id,
+          created_at: order.created_at,
+          reservation_expires_in: 600
         }
       });
 
     } catch (error) {
-      // Reversar toda la transacción en caso de falla
       await client.query('ROLLBACK');
+      fastify.log.error(error);
       
-      if (error.message === 'INSUFFICIENT_STOCK') {
-        return reply.code(409).send({
-          error: 'Conflict',
-          message: 'El inventario en la base de datos se agotó antes de asentar el pago.'
-        });
+      if (error.message === 'PACK_NOT_FOUND') {
+        // Devolver stock y eliminar lock
+        await fastify.redis.incrby(stockKey, quantity);
+        await fastify.redis.del(lockKey);
+        return reply.code(404).send({ error: 'Not Found', message: 'Pack no encontrado.' });
       }
 
-      fastify.log.error(error);
       return reply.code(500).send({ 
         error: 'Internal Server Error', 
-        message: 'Fallo crítico al asentar la reserva final en la base de datos.' 
+        message: 'Hubo un problema al procesar la reserva.' 
       });
     } finally {
       client.release();

@@ -13,89 +13,83 @@ export default async function paymentRoutes(fastify, options) {
       body: {
         type: 'object',
         properties: {
-          pack_id: { type: 'string', format: 'uuid' },
-          quantity: { type: 'integer', minimum: 1, default: 1 }
+          order_id: { type: 'string', format: 'uuid' }
         },
-        required: ['pack_id', 'quantity']
+        required: ['order_id']
       }
     }
   }, async (request, reply) => {
-    const { pack_id, quantity } = request.body;
+    const { order_id } = request.body;
     const client_id = request.user.sub || request.user.id;
 
-    // 1. Verificamos que el usuario tiene un "lock" en Redis.
-    // Si no lo tiene, su reserva ya expiró y no le permitimos ir a pagar.
-    const lockKey = `reservation:${pack_id}:${client_id}`;
-    const hasLock = await fastify.redis.get(lockKey);
-    
-    if (!hasLock) {
-      return reply.code(400).send({
-        status: 'error',
-        message: 'Tu tiempo de reserva ha expirado. Por favor, intenta reservar nuevamente.'
-      });
-    }
-
-    // 2. Obtenemos la información real del pack en la DB para no confiar en los precios del frontend
     const client = await fastify.pg.connect();
-    let packInfo;
     
     try {
       const { rows } = await client.query(`
-        SELECT id, store_id, title, discounted_price, available_quantity 
-        FROM public.surprise_packs 
-        WHERE id = $1
-      `, [pack_id]);
+        SELECT o.id, o.pack_id, o.store_id, o.quantity, o.status, p.title, p.discounted_price 
+        FROM public.orders o
+        JOIN public.surprise_packs p ON o.pack_id = p.id
+        WHERE o.id = $1 AND o.client_id = $2
+      `, [order_id, client_id]);
       
       if (rows.length === 0) {
-        return reply.code(404).send({ status: 'error', message: 'Pack no encontrado.' });
+        return reply.code(404).send({ status: 'error', message: 'Orden no encontrada o no autorizada.' });
       }
       
-      packInfo = rows[0];
-      
-      // Doble check rápido de stock
-      if (packInfo.available_quantity < quantity) {
-        return reply.code(409).send({ status: 'error', message: 'Inventario insuficiente.' });
-      }
-    } finally {
-      client.release();
-    }
+      const orderInfo = rows[0];
 
-    try {
-      // Determinar la URL del frontend dinámicamente desde el Origin de la petición
-      // para evitar problemas de CORS o redirección en producción
+      // Solo se pueden pagar órdenes pendientes
+      if (orderInfo.status !== 'PENDIENTE') {
+        return reply.code(400).send({ 
+          status: 'error', 
+          message: `La orden no puede pagarse porque su estado es: ${orderInfo.status}` 
+        });
+      }
+
+      // Verificamos que el usuario tiene el "lock" en Redis.
+      // Si no lo tiene, su reserva expiró y será cancelada pronto.
+      const lockKey = `reservation:${orderInfo.pack_id}:${client_id}`;
+      const hasLock = await fastify.redis.get(lockKey);
+      
+      if (!hasLock) {
+        return reply.code(400).send({
+          status: 'error',
+          message: 'Tu tiempo de reserva ha expirado. Por favor, intenta reservar nuevamente.'
+        });
+      }
+
       const frontendUrl = process.env.FRONTEND_URL || request.headers.origin || 'http://localhost:5173';
 
-      // 3. Crear la sesión de Stripe Checkout
+      // Crear la sesión de Stripe Checkout
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         mode: 'payment',
-        // Inyectamos metadatos críticos para procesarlos luego en el Webhook
+        // Inyectamos order_id en la metadata
         metadata: {
+          order_id: order_id.toString(),
           client_id: client_id.toString(),
-          pack_id: pack_id.toString(),
-          store_id: packInfo.store_id.toString(),
-          quantity: quantity.toString()
+          pack_id: orderInfo.pack_id.toString(),
+          store_id: orderInfo.store_id.toString(),
+          quantity: orderInfo.quantity.toString()
         },
         line_items: [
           {
             price_data: {
-              currency: 'gtq', // Quetzales guatemaltecos (cambiar a USD o EUR según tu país)
+              currency: 'gtq', // Quetzales guatemaltecos
               product_data: {
-                name: packInfo.title,
+                name: orderInfo.title,
                 description: 'Pack Sorpresa - Rescate de Alimentos',
               },
-              // Stripe espera el precio en centavos
-              unit_amount: Math.round(packInfo.discounted_price * 100),
+              unit_amount: Math.round(orderInfo.discounted_price * 100),
             },
-            quantity: quantity,
+            quantity: orderInfo.quantity,
           },
         ],
-        // URLs dinámicas de redirección al frontend correcto
-        success_url: `${frontendUrl}/customer/orders?success=true`,
-        cancel_url: `${frontendUrl}/explore?canceled=true`,
+        // Redirección a la vista de confirmación del pedido específico
+        success_url: `${frontendUrl}/order-confirmation/${order_id}`,
+        cancel_url: `${frontendUrl}/customer/orders`,
       });
 
-      // 4. Retornar la URL al frontend
       return reply.code(200).send({
         status: 'success',
         sessionUrl: session.url
@@ -107,6 +101,8 @@ export default async function paymentRoutes(fastify, options) {
         status: 'error',
         message: 'Error al conectar con la pasarela de pagos.'
       });
+    } finally {
+      client.release();
     }
   });
 }

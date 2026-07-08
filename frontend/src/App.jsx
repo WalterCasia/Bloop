@@ -6,7 +6,8 @@ import { StoreProvider } from './contexts/StoreContext';
 
 // Importación de Componentes Principales
 import ClientExploreDashboard from './components/ClientExploreDashboard';
-import CustomerOrders from './components/orders/CustomerOrders';
+import ClientOrdersView from './components/ClientOrdersView';
+import OrderConfirmationView from './components/OrderConfirmationView';
 import ClientProfileView from './components/ClientProfileView';
 
 import MerchantMainDashboard from './components/MerchantMainDashboard';
@@ -145,7 +146,16 @@ const App = () => {
               path="/customer/orders" 
               element={
                 <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
-                  <CustomerOrders />
+                  <ClientOrdersView />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/order-confirmation/:orderId" 
+              element={
+                <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
+                  <OrderConfirmationView />
                 </ProtectedRoute>
               } 
             />

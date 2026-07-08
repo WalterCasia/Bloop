@@ -39,7 +39,7 @@ export default async function webhookRoutes(fastify, options) {
         const session = event.data.object;
         
         // Extraemos los metadatos inyectados previamente al crear la sesión de pago
-        const { client_id, pack_id, store_id, quantity } = session.metadata;
+        const { order_id, client_id, pack_id, store_id, quantity } = session.metadata;
         const qty = parseInt(quantity, 10);
         
         const lockKey = `reservation:${pack_id}:${client_id}`;
@@ -62,38 +62,44 @@ export default async function webhookRoutes(fastify, options) {
             throw new Error('STOCK_RACE_CONDITION_AFTER_PAYMENT');
           }
 
-          const total_amount = updateResult.rows[0].discounted_price * qty;
-
           // 4. Generación del Código QR Encriptado para redención en tienda
           const qr_code_secret = fastify.jwt.sign({
             client_id,
             pack_id,
             store_id,
+            order_id,
             nonce: crypto.randomUUID(),
             purpose: 'pickup_qr'
           });
 
-          // 5. Asentar el pedido definitivo
-          await client.query(`
-            INSERT INTO public.orders 
-            (client_id, pack_id, store_id, status, quantity, total_amount, qr_code_secret) 
-            VALUES ($1, $2, $3, 'PAGADO', $4, $5, $6)
-          `, [client_id, pack_id, store_id, qty, total_amount, qr_code_secret]);
+          // 5. Asentar el pedido definitivo actualizando el estado de la reserva
+          const orderResult = await client.query(`
+            UPDATE public.orders 
+            SET status = 'PAGADO', qr_code_secret = $1 
+            WHERE id = $2 AND status = 'PENDIENTE'
+            RETURNING id
+          `, [qr_code_secret, order_id]);
+
+          if (orderResult.rowCount === 0) {
+            throw new Error('ORDER_NOT_FOUND_OR_NOT_PENDING');
+          }
 
           await client.query('COMMIT');
 
           // 6. Limpieza: Liberar el candado de Redis ahora que el proceso es definitivo
           await fastify.redis.del(lockKey);
 
-          fastify.log.info(`✅ Pago y reserva confirmados (Webhook) para el cliente ${client_id}`);
+          fastify.log.info(`✅ Pago y reserva confirmados (Webhook) para la orden ${order_id}`);
         } catch (error) {
           await client.query('ROLLBACK');
           fastify.log.error(`Fallo transaccional en Webhook: ${error.message}`);
           
           if (error.message === 'STOCK_RACE_CONDITION_AFTER_PAYMENT') {
             // Alerta crítica: El usuario pagó pero no obtuvo stock
-            // stripe.refunds.create({ payment_intent: session.payment_intent });
             fastify.log.error(`[ACCIÓN REQUERIDA] Ejecutar reembolso para sesión: ${session.id}`);
+          }
+          if (error.message === 'ORDER_NOT_FOUND_OR_NOT_PENDING') {
+            fastify.log.error(`Orden ${order_id} no encontrada o ya procesada/cancelada para sesión: ${session.id}`);
           }
           return reply.code(500).send({ error: 'Fallo al procesar el asentamiento del pedido.' });
         } finally {
