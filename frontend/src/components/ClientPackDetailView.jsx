@@ -17,6 +17,7 @@ const ClientPackDetailView = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [timeLeft, setTimeLeft] = useState(600);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [orderId, setOrderId] = useState(null);
 
   useEffect(() => {
     let timer;
@@ -48,10 +49,14 @@ const ClientPackDetailView = () => {
     setErrorMessage('');
     
     try {
-      const response = await apiClient.post(`/api/packs/${pack.pack_id}/reserve`);
+      const response = await apiClient.post('/api/orders/reserve', {
+        pack_id: pack.pack_id,
+        quantity: 1
+      });
       if (response.data.status === 'success') {
         setStatus('reserved');
-        setTimeLeft(response.data.reservation_expires_in || 600); 
+        setTimeLeft(response.data.order?.reservation_expires_in || 600); 
+        setOrderId(response.data.order?.id);
       }
     } catch (error) {
       setStatus('error');
@@ -60,13 +65,13 @@ const ClientPackDetailView = () => {
   };
 
   const handlePayment = async () => {
+    if (!orderId) return;
     setIsProcessingPayment(true);
     setErrorMessage('');
     
     try {
       const response = await apiClient.post('/api/payments/create-checkout-session', {
-        pack_id: pack.pack_id,
-        quantity: 1
+        order_id: orderId
       });
       
       if (response.data.status === 'success' && response.data.sessionUrl) {
