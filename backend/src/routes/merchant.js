@@ -308,7 +308,7 @@ export default async function merchantRoutes(fastify, options) {
           JOIN public.surprise_packs sp ON o.pack_id = sp.id
           WHERE o.qr_code_secret = $1 AND o.store_id = $2
         `;
-        const checkResult = await client.query(checkQuery, [qr_code, store_id]);
+        const checkResult = await client.query(checkQuery, [qr_code, actualStoreId]);
         
         if (checkResult.rowCount === 0) {
           return reply.code(404).send({ error: 'Not Found', message: 'El pedido no existe en la base de datos.' });
