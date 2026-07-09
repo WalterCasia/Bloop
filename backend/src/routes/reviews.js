@@ -33,7 +33,7 @@ export default async function reviewRoutes(fastify, options) {
 
       const order = orderRes.rows[0];
 
-      if (order.status !== 'DELIVERED') {
+      if (order.status !== 'RECOGIDO') {
         return reply.code(400).send({ error: 'Solo puedes calificar pedidos que ya fueron entregados.' });
       }
 
