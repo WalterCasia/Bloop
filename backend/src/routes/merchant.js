@@ -712,7 +712,13 @@ export default async function merchantRoutes(fastify, options) {
     
     // Construir timestamps para la recogida
     const pickupStart = `${pickupDate} ${startTime}:00-06`; // Asumimos zona horaria UTC-6 para Centroamérica, ideal para el MVP
-    const pickupEnd = `${pickupDate} ${endTime}:00-06`;
+    let endDateStr = pickupDate;
+    if (endTime < startTime) {
+      const dateObj = new Date(`${pickupDate}T12:00:00Z`);
+      dateObj.setUTCDate(dateObj.getUTCDate() + 1);
+      endDateStr = dateObj.toISOString().split('T')[0];
+    }
+    const pickupEnd = `${endDateStr} ${endTime}:00-06`;
 
     let imageUrlsArray = [];
     try {
@@ -884,8 +890,14 @@ export default async function merchantRoutes(fastify, options) {
           }
           
           if (startTime && endTime) {
+            let endDateStr = today;
+            if (endTime < startTime) {
+              const dateObj = new Date(`${today}T12:00:00Z`); // Mediodía para evitar problemas de zona horaria
+              dateObj.setUTCDate(dateObj.getUTCDate() + 1);
+              endDateStr = dateObj.toISOString().split('T')[0];
+            }
             updatePackQuery += `, pickup_start_time = $${packParamIndex}::timestamptz, pickup_end_time = $${packParamIndex+1}::timestamptz`;
-            packParams.push(`${today} ${startTime}:00-06`, `${today} ${endTime}:00-06`);
+            packParams.push(`${today} ${startTime}:00-06`, `${endDateStr} ${endTime}:00-06`);
             packParamIndex += 2;
           }
           
