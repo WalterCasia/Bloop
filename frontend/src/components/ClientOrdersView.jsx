@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useClientOrders } from '../hooks/useClientOrders';
-import { MapPin, Clock, QrCode, XCircle, Package } from 'lucide-react';
+import { MapPin, Clock, QrCode, XCircle, Package, Star } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import apiClient from '../api/apiClient';
 
@@ -76,7 +76,10 @@ function ReservedOrderCard({ order }) {
 }
 
 // Order Activo / Pasado / Cancelado Component
+import { useReview } from '../contexts/ReviewContext';
+
 function OrderCard({ order, onShowQR }) {
+  const { openReviewModal } = useReview();
   const isCanceled = order.status === 'CANCELADO';
   const isPast = order.status === 'RECOGIDO';
   
@@ -119,6 +122,16 @@ function OrderCard({ order, onShowQR }) {
         >
           <QrCode size={18} />
           Ver código QR
+        </button>
+      )}
+
+      {isPast && (
+        <button 
+          onClick={() => openReviewModal(order)}
+          className="w-full mt-2 border-2 border-black text-black bg-transparent py-3 rounded-xl font-semibold hover:bg-gray-50 transition flex justify-center items-center gap-2"
+        >
+          <Star size={18} />
+          Calificar pedido
         </button>
       )}
     </div>
