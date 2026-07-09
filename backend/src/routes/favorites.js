@@ -14,11 +14,8 @@ export default async function (fastify, opts) {
         SELECT 
           s.id,
           s.name,
-          s.logo_url,
           s.cover_url,
           s.address,
-          s.rating,
-          s.categories,
           COALESCE(
             (
               SELECT SUM(available_quantity)
