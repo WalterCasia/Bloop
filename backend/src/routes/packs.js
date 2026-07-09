@@ -32,6 +32,7 @@ export default async function packRoutes(fastify, options) {
         sp.pickup_start_time,
         sp.pickup_end_time,
         sp.image_url,
+        s.id AS store_id,
         s.name AS store_name,
         s.address,
         s.cover_url,
