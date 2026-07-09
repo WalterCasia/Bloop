@@ -228,23 +228,27 @@ export default async function merchantRoutes(fastify, options) {
   }, async (request, reply) => {
     const { qr_code, storeId: payloadStoreId } = request.body;
     
-    let decodedQR;
-    try {
-      // 1. Verificación criptográfica de la firma del QR (asegura que fue generado por nosotros)
-      decodedQR = fastify.jwt.verify(qr_code);
-    } catch (err) {
-      return reply.code(400).send({
-        error: 'Invalid Token',
-        message: 'El código QR proporcionado es inválido o está corrupto.'
-      });
-    }
+    const isManualCode = qr_code.length < 20;
+    let decodedQR = null;
+    
+    if (!isManualCode) {
+      try {
+        // 1. Verificación criptográfica de la firma del QR (asegura que fue generado por nosotros)
+        decodedQR = fastify.jwt.verify(qr_code);
+      } catch (err) {
+        return reply.code(400).send({
+          error: 'Invalid Token',
+          message: 'El código QR proporcionado es inválido o está corrupto.'
+        });
+      }
 
-    // Validación de propósito (evita que otros tipos de JWT se usen aquí)
-    if (decodedQR.purpose !== 'pickup_qr') {
-      return reply.code(400).send({
-        error: 'Invalid Purpose',
-        message: 'Este código QR no tiene permisos para redención de pedidos.'
-      });
+      // Validación de propósito (evita que otros tipos de JWT se usen aquí)
+      if (decodedQR.purpose !== 'pickup_qr') {
+        return reply.code(400).send({
+          error: 'Invalid Purpose',
+          message: 'Este código QR no tiene permisos para redención de pedidos.'
+        });
+      }
     }
 
     const client = await fastify.pg.connect();
@@ -275,7 +279,7 @@ export default async function merchantRoutes(fastify, options) {
       }
 
       // 2. Control de Acceso: El QR debe pertenecer estricamente al comercio que escanea
-      if (decodedQR.store_id !== actualStoreId) {
+      if (!isManualCode && decodedQR.store_id !== actualStoreId) {
         return reply.code(403).send({
           error: 'Forbidden',
           message: 'Intento de validación rechazado: Este código QR pertenece a otra sucursal o comercio.'
@@ -285,30 +289,60 @@ export default async function merchantRoutes(fastify, options) {
       // 3. Verificación de reglas de negocio en BD y actualización atómica
       // Nota: El usuario solicitó el estado "DELIVERED", pero en nuestro ENUM SQL es "RECOGIDO". 
       // Se utiliza "RECOGIDO" para respetar estrictamente la integridad referencial de la BD.
-      const updateQuery = `
-        UPDATE public.orders AS o
-        SET status = 'RECOGIDO', updated_at = NOW()
-        FROM public.surprise_packs sp
-        WHERE o.pack_id = sp.id
-          AND o.qr_code_secret = $1
-          AND o.store_id = $2
-          AND o.status = 'PAGADO'
-          AND NOW() >= sp.pickup_start_time 
-          AND NOW() <= sp.pickup_end_time
-        RETURNING o.id, o.client_id, sp.title
-      `;
+      
+      let updateQuery;
+      let queryParams;
+      let checkQuery;
 
-      const result = await client.query(updateQuery, [qr_code, actualStoreId]);
+      if (isManualCode) {
+        updateQuery = `
+          UPDATE public.orders AS o
+          SET status = 'RECOGIDO', updated_at = NOW()
+          FROM public.surprise_packs sp
+          WHERE o.pack_id = sp.id
+            AND UPPER(o.id::text) LIKE $1
+            AND o.store_id = $2
+            AND o.status = 'PAGADO'
+            AND NOW() >= sp.pickup_start_time 
+            AND NOW() <= sp.pickup_end_time
+          RETURNING o.id, o.client_id, sp.title
+        `;
+        queryParams = [`${qr_code.toUpperCase()}%`, actualStoreId];
 
-      if (result.rowCount === 0) {
-        // Si no se actualizó nada, analizamos el motivo específico para un feedback claro al local
-        const checkQuery = `
+        checkQuery = `
+          SELECT o.status, sp.pickup_start_time, sp.pickup_end_time
+          FROM public.orders o
+          JOIN public.surprise_packs sp ON o.pack_id = sp.id
+          WHERE UPPER(o.id::text) LIKE $1 AND o.store_id = $2
+        `;
+      } else {
+        updateQuery = `
+          UPDATE public.orders AS o
+          SET status = 'RECOGIDO', updated_at = NOW()
+          FROM public.surprise_packs sp
+          WHERE o.pack_id = sp.id
+            AND o.qr_code_secret = $1
+            AND o.store_id = $2
+            AND o.status = 'PAGADO'
+            AND NOW() >= sp.pickup_start_time 
+            AND NOW() <= sp.pickup_end_time
+          RETURNING o.id, o.client_id, sp.title
+        `;
+        queryParams = [qr_code, actualStoreId];
+
+        checkQuery = `
           SELECT o.status, sp.pickup_start_time, sp.pickup_end_time
           FROM public.orders o
           JOIN public.surprise_packs sp ON o.pack_id = sp.id
           WHERE o.qr_code_secret = $1 AND o.store_id = $2
         `;
-        const checkResult = await client.query(checkQuery, [qr_code, actualStoreId]);
+      }
+
+      const result = await client.query(updateQuery, queryParams);
+
+      if (result.rowCount === 0) {
+        // Si no se actualizó nada, analizamos el motivo específico para un feedback claro al local
+        const checkResult = await client.query(checkQuery, queryParams);
         
         if (checkResult.rowCount === 0) {
           return reply.code(404).send({ error: 'Not Found', message: 'El pedido no existe en la base de datos.' });

@@ -66,7 +66,7 @@ const QRScannerModal = ({ onClose, onSuccess, activeStore }) => {
         storeId: activeStore?.id 
       });
       if (response.data.status === 'success') {
-        onSuccess(response.data.data);
+        onSuccess(response.data.order);
       }
     } catch (err) {
       setError(
