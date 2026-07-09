@@ -40,6 +40,9 @@ async function registerPlugins() {
   await fastify.register(redisPlugin);
   await fastify.register(authPlugin);
 
+  // 4. Inyección de dependencias síncronas en la instancia de Fastify
+  fastify.decorate('cloudinary', cloudinary);
+
   // Rutas de la API
   await fastify.register(import('./routes/packs.js'));
   await fastify.register(import('./routes/orders.js'));
@@ -53,9 +56,6 @@ async function registerPlugins() {
   await fastify.register(import('./routes/payouts.js'));
   await fastify.register(import('./routes/favorites.js'));
   await fastify.register(import('./routes/public.js'));
-
-  // 4. Inyección de dependencias síncronas en la instancia de Fastify
-  fastify.decorate('cloudinary', cloudinary);
 }
 
 // 5. Arranque del Servidor
