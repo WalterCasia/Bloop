@@ -6,7 +6,7 @@ export default async function (fastify, opts) {
   fastify.get('/api/favorites', async (request, reply) => {
     const client = await fastify.pg.connect();
     try {
-      const clientId = request.user.id;
+      const clientId = request.user.sub || request.user.id;
 
       // Obtener locales favoritos con su stock disponible
       // Un left join con surprise_packs que estén activos y dentro del horario
@@ -50,7 +50,7 @@ export default async function (fastify, opts) {
   fastify.post('/api/favorites/toggle', async (request, reply) => {
     const client = await fastify.pg.connect();
     try {
-      const clientId = request.user.id;
+      const clientId = request.user.sub || request.user.id;
       const { storeId } = request.body;
 
       if (!storeId) {
