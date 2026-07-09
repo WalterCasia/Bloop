@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, ShoppingBag, MapPin, ChevronDown, User } from 'lucide-react';
+import { Search, ShoppingBag, MapPin, ChevronDown, User, Heart } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const filters = [
@@ -140,6 +140,13 @@ const ClientTopNav = ({
 
         {/* Extremo Derecho (Acciones de Usuario) */}
         <div className="flex items-center gap-3">
+          <Link 
+            to="/favorites"
+            className="text-gray-900 hover:bg-gray-100 px-4 py-2 rounded-full font-medium flex items-center gap-2 transition"
+          >
+            <Heart size={18} />
+            <span className="hidden sm:inline">Favoritos</span>
+          </Link>
           <Link 
             to="/customer/orders"
             className="rounded-full px-4 py-2 border border-gray-300 hover:bg-gray-100 font-medium text-sm flex items-center gap-2 text-gray-700 transition-colors relative"

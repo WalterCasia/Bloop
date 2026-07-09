@@ -27,6 +27,7 @@ import NavigationLayout from './components/NavigationLayout';
 import ClientOnboardingWizard from './components/ClientOnboardingWizard';
 import ClientPreferencesView from './components/ClientPreferencesView';
 import MerchantStoreWizard from './components/auth/MerchantStoreWizard';
+import ClientFavoritesView from './components/ClientFavoritesView';
 import SurprisePackTemplateEditor from './components/SurprisePackTemplateEditor';
 import ClientPackDetailView from './components/ClientPackDetailView';
 import ClientReviewModal from './components/ClientReviewModal';
@@ -198,6 +199,15 @@ const App = () => {
                     element={
                       <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
                         <ClientPreferencesView />
+                      </ProtectedRoute>
+                    } 
+                  />
+
+                  <Route 
+                    path="/favorites" 
+                    element={
+                      <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
+                        <ClientFavoritesView />
                       </ProtectedRoute>
                     } 
                   />
