@@ -74,7 +74,7 @@ export default function ClientFavoritesView() {
 
               <div className="h-48 w-full rounded-xl overflow-hidden mb-4 bg-gray-100 relative">
                 <img 
-                  src={store.cover_url || store.logo_url || 'https://via.placeholder.com/400x300?text=Local'} 
+                  src={(store.cover_url && store.cover_url.split(',')[0]) || 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80'} 
                   alt={store.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />

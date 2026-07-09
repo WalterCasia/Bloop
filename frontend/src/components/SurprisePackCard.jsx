@@ -22,6 +22,9 @@ const SurprisePackCard = ({ pack, isHovered, onMouseEnter, onMouseLeave, onClick
     navigate(`/packs/${pack.pack_id}`, { state: { pack } });
   };
 
+  const rawImg = pack.image_url || pack.cover_url || '';
+  const firstImgUrl = rawImg.includes(',') ? rawImg.split(',')[0] : rawImg;
+
   return (
     <div 
       className={`relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 border ${
@@ -33,9 +36,9 @@ const SurprisePackCard = ({ pack, isHovered, onMouseEnter, onMouseLeave, onClick
     >
       {/* Imagen Header */}
       <div className="relative h-48 w-full bg-gray-200 overflow-hidden">
-        {pack.image_url || pack.cover_url ? (
+        {firstImgUrl ? (
           <img 
-            src={pack.image_url || pack.cover_url} 
+            src={firstImgUrl} 
             alt={pack.title}
             className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
             loading="lazy"
