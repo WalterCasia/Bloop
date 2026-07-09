@@ -14,6 +14,7 @@ const MerchantBranchCreator = () => {
 
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
+  const [coverUrl, setCoverUrl] = useState('');
   const [coords, setCoords] = useState({ lng: -90.5069, lat: 14.6349 }); // Guatemala Default
   
   const [isSaving, setIsSaving] = useState(false);
@@ -26,6 +27,10 @@ const MerchantBranchCreator = () => {
   });
 
   const handleMarkerDragEnd = useCallback((event) => {
+    setCoords({ lng: event.lngLat.lng, lat: event.lngLat.lat });
+  }, []);
+
+  const handleMapClick = useCallback((event) => {
     setCoords({ lng: event.lngLat.lng, lat: event.lngLat.lat });
   }, []);
 
@@ -47,6 +52,7 @@ const MerchantBranchCreator = () => {
       await apiClient.post('/api/merchant/stores', {
         name,
         address,
+        cover_url: coverUrl,
         lng: coords.lng,
         lat: coords.lat
       });
@@ -114,6 +120,17 @@ const MerchantBranchCreator = () => {
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">URL del Logo (Opcional)</label>
+              <input
+                type="url"
+                value={coverUrl}
+                onChange={(e) => setCoverUrl(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none font-medium transition-all"
+                placeholder="https://ejemplo.com/logo.png"
+              />
+            </div>
+
             {/* Mapa de Coordenadas */}
             <div>
               <label className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
@@ -126,6 +143,7 @@ const MerchantBranchCreator = () => {
                 <Map
                   {...viewState}
                   onMove={evt => setViewState(evt.viewState)}
+                  onClick={handleMapClick}
                   mapStyle="mapbox://styles/mapbox/streets-v12"
                   mapboxAccessToken={MAPBOX_TOKEN}
                   style={{ width: '100%', height: '100%' }}
