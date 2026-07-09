@@ -27,10 +27,10 @@ import NavigationLayout from './components/NavigationLayout';
 import ClientOnboardingWizard from './components/ClientOnboardingWizard';
 import ClientPreferencesView from './components/ClientPreferencesView';
 import MerchantStoreWizard from './components/auth/MerchantStoreWizard';
-import ClientFavoritesView from './components/ClientFavoritesView';
 import SurprisePackTemplateEditor from './components/SurprisePackTemplateEditor';
 import ClientPackDetailView from './components/ClientPackDetailView';
 import ClientReviewModal from './components/ClientReviewModal';
+import ClientFavoritesView from './components/ClientFavoritesView';
 import MerchantDashboardLayout from './components/merchant/MerchantDashboardLayout';
 import UnderConstructionView from './components/merchant/UnderConstructionView';
 import MerchantOrdersView from './components/merchant/MerchantOrdersView';
@@ -107,7 +107,8 @@ const App = () => {
     <AuthProvider>
       <StoreProvider>
         <ReservationProvider>
-          <Router>
+          <ReviewProvider>
+            <Router>
             <Routes>
           {/* =======================
               Flujos Públicos
@@ -128,140 +129,118 @@ const App = () => {
           <Route element={<NavigationLayout />}>
             {/* Rutas Cliente */}
             <Route 
-          <ReviewProvider>
-            <Router>
-              <Routes>
-                {/* =======================
-                    Flujos Públicos
-                   ======================= */}
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/auth/client" element={<ClientAuthFlow />} />
-                <Route path="/auth/merchant" element={<MerchantAuthFlow />} />
-                
-                {/* Legacy Routes (Kept for compatibility during transition) */}
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/signup" element={<SignupPage />} />
-                <Route path="/join" element={<EmployeeJoinView />} />
-                <Route path="/unauthorized" element={<Unauthorized />} />
+              path="/onboarding/client" 
+              element={
+                <ProtectedRoute requiredRole="CLIENTE">
+                  <ClientOnboardingWizard />
+                </ProtectedRoute>
+              } 
+            />
 
-                {/* =======================
-                    Flujos Privados (App Shell)
-                   ======================= */}
-                <Route element={<NavigationLayout />}>
-                  {/* Rutas Cliente */}
-                  <Route 
-                    path="/onboarding/client" 
-                    element={
-                      <ProtectedRoute requiredRole="CLIENTE">
-                        <ClientOnboardingWizard />
-                      </ProtectedRoute>
-                    } 
-                  />
+            <Route 
+              path="/explore" 
+              element={
+                <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
+                  <ClientExploreDashboard />
+                </ProtectedRoute>
+              } 
+            />
 
-                  <Route 
-                    path="/explore" 
-                    element={
-                      <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
-                        <ClientExploreDashboard />
-                      </ProtectedRoute>
-                    } 
-                  />
+            <Route 
+              path="/customer/orders" 
+              element={
+                <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
+                  <ClientOrdersView />
+                </ProtectedRoute>
+              } 
+            />
 
-                  <Route 
-                    path="/customer/orders" 
-                    element={
-                      <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
-                        <ClientOrdersView />
-                      </ProtectedRoute>
-                    } 
-                  />
+            <Route 
+              path="/order-confirmation/:orderId" 
+              element={
+                <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
+                  <OrderConfirmationView />
+                </ProtectedRoute>
+              } 
+            />
 
-                  <Route 
-                    path="/order-confirmation/:orderId" 
-                    element={
-                      <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
-                        <OrderConfirmationView />
-                      </ProtectedRoute>
-                    } 
-                  />
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
+                  <ClientProfileView />
+                </ProtectedRoute>
+              } 
+            />
 
-                  <Route 
-                    path="/profile" 
-                    element={
-                      <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
-                        <ClientProfileView />
-                      </ProtectedRoute>
-                    } 
-                  />
+            <Route 
+              path="/client/preferences" 
+              element={
+                <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
+                  <ClientPreferencesView />
+                </ProtectedRoute>
+              } 
+            />
 
-                  <Route 
-                    path="/client/preferences" 
-                    element={
-                      <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
-                        <ClientPreferencesView />
-                      </ProtectedRoute>
-                    } 
-                  />
+            <Route 
+              path="/favorites" 
+              element={
+                <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
+                  <ClientFavoritesView />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/packs/:id" 
+              element={
+                <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
+                  <ClientPackDetailView />
+                </ProtectedRoute>
+              } 
+            />
 
-                  <Route 
-                    path="/favorites" 
-                    element={
-                      <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
-                        <ClientFavoritesView />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="/packs/:id" 
-                    element={
-                      <ProtectedRoute requiredRole="CLIENTE" requireOnboarding={true}>
-                        <ClientPackDetailView />
-                      </ProtectedRoute>
-                    } 
-                  />
+            {/* Rutas Comercio */}
+            <Route 
+              path="/onboarding/merchant" 
+              element={
+                <ProtectedRoute requiredRole={['OWNER', 'STAFF', 'COMERCIO']}>
+                  <MerchantStoreWizard />
+                </ProtectedRoute>
+              } 
+            />
+          </Route>
 
-                  {/* Rutas Comercio */}
-                  <Route 
-                    path="/onboarding/merchant" 
-                    element={
-                      <ProtectedRoute requiredRole={['OWNER', 'STAFF', 'COMERCIO']}>
-                        <MerchantStoreWizard />
-                      </ProtectedRoute>
-                    } 
-                  />
-                </Route>
+            {/* =======================
+                Layout Exclusivo COMERCIO (Uber Eats Style)
+               ======================= */}
+          <Route element={<ProtectedRoute requiredRole={['OWNER', 'STAFF', 'COMERCIO']} requireOnboarding={true}><MerchantDashboardLayout /></ProtectedRoute>}>
+            <Route path="/merchant/dashboard" element={<MerchantDashboardSelector />} />
+            
+            {/* Rutas compartidas (OWNER + STAFF) */}
+            <Route path="/merchant/orders" element={<MerchantOrdersView />} />
+            
+            {/* Rutas exclusivas para OWNER */}
+            <Route path="/merchant/daily-stock" element={<RoleProtectedRoute allowedRoles={['OWNER']}><DailyStockDashboard /></RoleProtectedRoute>} />
+            <Route path="/merchant/create-pack" element={<RoleProtectedRoute allowedRoles={['OWNER']}><SurprisePackTemplateEditor /></RoleProtectedRoute>} />
+            <Route path="/merchant/profile" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantProfile /></RoleProtectedRoute>} />
+            <Route path="/merchant/employees" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantEmployeesView /></RoleProtectedRoute>} />
+            <Route path="/merchant/stats" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantStats /></RoleProtectedRoute>} />
+            <Route path="/merchant/branch/new" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantBranchCreator /></RoleProtectedRoute>} />
+            <Route path="/merchant/settings" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantStoreSettings /></RoleProtectedRoute>} />
+            <Route path="/merchant/performance" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantPerformanceView /></RoleProtectedRoute>} />
+            <Route path="/merchant/reviews" element={<RoleProtectedRoute allowedRoles={['OWNER', 'STAFF']}><MerchantReviewsView /></RoleProtectedRoute>} />
+            <Route path="/merchant/reports" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantReportsView /></RoleProtectedRoute>} />
+            <Route path="/merchant/payments" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantPaymentsView /></RoleProtectedRoute>} />
+          </Route>
 
-                  {/* =======================
-                      Layout Exclusivo COMERCIO (Uber Eats Style)
-                     ======================= */}
-                <Route element={<ProtectedRoute requiredRole={['OWNER', 'STAFF', 'COMERCIO']} requireOnboarding={true}><MerchantDashboardLayout /></ProtectedRoute>}>
-                  <Route path="/merchant/dashboard" element={<MerchantDashboardSelector />} />
-                  
-                  {/* Rutas compartidas (OWNER + STAFF) */}
-                  <Route path="/merchant/orders" element={<MerchantOrdersView />} />
-                  
-                  {/* Rutas exclusivas para OWNER */}
-                  <Route path="/merchant/daily-stock" element={<RoleProtectedRoute allowedRoles={['OWNER']}><DailyStockDashboard /></RoleProtectedRoute>} />
-                  <Route path="/merchant/create-pack" element={<RoleProtectedRoute allowedRoles={['OWNER']}><SurprisePackTemplateEditor /></RoleProtectedRoute>} />
-                  <Route path="/merchant/profile" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantProfile /></RoleProtectedRoute>} />
-                  <Route path="/merchant/employees" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantEmployeesView /></RoleProtectedRoute>} />
-                  <Route path="/merchant/stats" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantStats /></RoleProtectedRoute>} />
-                  <Route path="/merchant/branch/new" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantBranchCreator /></RoleProtectedRoute>} />
-                  <Route path="/merchant/settings" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantStoreSettings /></RoleProtectedRoute>} />
-                  <Route path="/merchant/performance" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantPerformanceView /></RoleProtectedRoute>} />
-                  <Route path="/merchant/reviews" element={<RoleProtectedRoute allowedRoles={['OWNER', 'STAFF']}><MerchantReviewsView /></RoleProtectedRoute>} />
-                  <Route path="/merchant/reports" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantReportsView /></RoleProtectedRoute>} />
-                  <Route path="/merchant/payments" element={<RoleProtectedRoute allowedRoles={['OWNER']}><MerchantPaymentsView /></RoleProtectedRoute>} />
-                </Route>
-
-                {/* Ruta Catch-all (Redirección 404 por defecto a Inicio) */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-              <ClientReviewModal />
-            </Router>
-          </ReviewProvider>
-        </ReservationProvider>
+          {/* Ruta Catch-all (Redirección 404 por defecto a Inicio) */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        <ClientReviewModal />
+      </Router>
+      </ReviewProvider>
+      </ReservationProvider>
       </StoreProvider>
     </AuthProvider>
   );
