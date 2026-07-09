@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useClientOrders } from '../hooks/useClientOrders';
-import { MapPin, Clock, QrCode, XCircle, Package, Star } from 'lucide-react';
+import { MapPin, Clock, QrCode, XCircle, Package, Star, ArrowLeft } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import apiClient from '../api/apiClient';
 
@@ -139,6 +140,7 @@ function OrderCard({ order, onShowQR }) {
 }
 
 export default function ClientOrdersView() {
+  const navigate = useNavigate();
   const { orders, loading, error } = useClientOrders();
   const [activeTab, setActiveTab] = useState('RESERVED');
   const [selectedQR, setSelectedQR] = useState(null);
@@ -172,7 +174,13 @@ export default function ClientOrdersView() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-4">
+        <div className="px-4 py-4 flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/customer/explore')}
+            className="p-2 bg-gray-50 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <ArrowLeft size={20} className="text-gray-900" />
+          </button>
           <h1 className="text-2xl font-bold text-gray-900">Mis Pedidos</h1>
         </div>
         <div className="flex overflow-x-auto hide-scrollbar px-4 border-b border-gray-200">
