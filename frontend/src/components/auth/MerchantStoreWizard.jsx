@@ -28,7 +28,8 @@ const MerchantStoreWizard = () => {
     pickupStart: '',
     pickupEnd: '',
     legalName: '',
-    bankAccount: ''
+    bankAccount: '',
+    logoBase64: ''
   });
 
   // Cargar caché local (opcional para no perder progreso)
@@ -86,7 +87,8 @@ const MerchantStoreWizard = () => {
         manager_name: storeData.managerName,
         phone: storeData.phone,
         pickup_start: storeData.pickupStart,
-        pickup_end: storeData.pickupEnd
+        pickup_end: storeData.pickupEnd,
+        logoBase64: storeData.logoBase64
       };
       
       await apiClient.put('/api/merchant/profile', payload);

@@ -51,15 +51,31 @@ export default async function profileRoutes(fastify, options) {
           lat: { type: 'number', minimum: -90, maximum: 90 },
           lng: { type: 'number', minimum: -180, maximum: 180 },
           avatar_url: { type: 'string' },
-          cover_url: { type: 'string' }
+          cover_url: { type: 'string' },
+          logoBase64: { type: 'string' }
         },
         required: ['store_name', 'address', 'lat', 'lng']
       }
     }
   }, async (request, reply) => {
     const userId = request.user.sub || request.user.id;
-    const { store_name, description, address, lat, lng, avatar_url, cover_url } = request.body;
+    const { store_name, description, address, lat, lng, logoBase64 } = request.body;
+    let { avatar_url, cover_url } = request.body;
     
+    // Subir a Cloudinary si viene una imagen en base64
+    if (logoBase64) {
+      try {
+        const uploadResponse = await fastify.cloudinary.uploader.upload(logoBase64, {
+          folder: 'bloop_stores',
+          resource_type: 'image'
+        });
+        cover_url = uploadResponse.secure_url;
+        avatar_url = uploadResponse.secure_url;
+      } catch (err) {
+        fastify.log.error('Error uploading logo to Cloudinary:', err);
+      }
+    }
+
     const client = await fastify.pg.connect();
 
     try {
