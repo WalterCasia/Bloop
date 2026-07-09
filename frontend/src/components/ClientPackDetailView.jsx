@@ -18,6 +18,7 @@ const ClientPackDetailView = () => {
   const [timeLeft, setTimeLeft] = useState(600);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [orderId, setOrderId] = useState(null);
+  const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
     let timer;
@@ -33,6 +34,28 @@ const ClientPackDetailView = () => {
       if (timer) clearInterval(timer);
     };
   }, [status, timeLeft]);
+
+  useEffect(() => {
+    if (pack?.store_id) {
+      apiClient.get('/api/favorites')
+        .then(res => {
+          const isFav = res.data.favorites?.some(f => f.id === pack.store_id);
+          setIsFavorite(!!isFav);
+        })
+        .catch(err => console.error(err));
+    }
+  }, [pack?.store_id]);
+
+  const handleToggleFavorite = async () => {
+    const prev = isFavorite;
+    setIsFavorite(!prev);
+    try {
+      await apiClient.post('/api/favorites/toggle', { storeId: pack.store_id });
+    } catch (error) {
+      console.error(error);
+      setIsFavorite(prev);
+    }
+  };
 
   if (!pack) {
     return (
@@ -139,9 +162,10 @@ const ClientPackDetailView = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <button 
+            onClick={handleToggleFavorite}
             className="absolute top-6 right-6 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
           >
-            <Heart className="w-5 h-5" />
+            <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current text-red-500' : ''}`} />
           </button>
 
           {/* Logotipo Solapado */}
