@@ -803,15 +803,30 @@ export default async function merchantRoutes(fastify, options) {
           lng: { type: 'number' },
           salePrice: { type: 'number' },
           startTime: { type: 'string' },
-          endTime: { type: 'string' }
+          endTime: { type: 'string' },
+          logoBase64: { type: 'string' }
         },
         required: ['storeId']
       }
     }
   }, async (request, reply) => {
-    const { storeId, isActive, lat, lng, salePrice, startTime, endTime } = request.body;
+    const { storeId, isActive, lat, lng, salePrice, startTime, endTime, logoBase64 } = request.body;
     const owner_id = request.user.sub || request.user.id;
     
+    // Subir a Cloudinary si viene una imagen en base64
+    let cover_url = null;
+    if (logoBase64) {
+      try {
+        const uploadResponse = await fastify.cloudinary.uploader.upload(logoBase64, {
+          folder: 'bloop_stores',
+          resource_type: 'image'
+        });
+        cover_url = uploadResponse.secure_url;
+      } catch (err) {
+        fastify.log.error('Error uploading logo to Cloudinary:', err);
+      }
+    }
+
     const client = await fastify.pg.connect();
     try {
       await client.query('BEGIN');
@@ -837,6 +852,12 @@ export default async function merchantRoutes(fastify, options) {
         updateStoreQuery += `, location = ST_SetSRID(ST_MakePoint($${storeParamIndex}, $${storeParamIndex+1}), 4326)`;
         storeParams.push(lng, lat);
         storeParamIndex += 2;
+      }
+
+      if (cover_url) {
+        updateStoreQuery += `, cover_url = $${storeParamIndex}`;
+        storeParams.push(cover_url);
+        storeParamIndex++;
       }
       
       updateStoreQuery += ` WHERE id = $${storeParamIndex}`;

@@ -4,7 +4,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { useStoreContext } from '../../contexts/StoreContext';
 import apiClient from '../../api/apiClient';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Save, Power, PowerOff, Clock, DollarSign, AlertCircle, Trash2 } from 'lucide-react';
+import { MapPin, Save, Power, PowerOff, Clock, DollarSign, AlertCircle, Trash2, Image as ImageIcon } from 'lucide-react';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const DEFAULT_LAT = 14.6349;
@@ -25,6 +25,9 @@ const MerchantStoreSettings = () => {
   const [salePrice, setSalePrice] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  
+  const [logoBase64, setLogoBase64] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   const [viewState, setViewState] = useState({
     latitude: DEFAULT_LAT,
@@ -42,6 +45,7 @@ const MerchantStoreSettings = () => {
       const { store, pack } = res.data.settings;
       
       setIsActive(store.isActive);
+      setImagePreview(store.cover_url || null);
       
       const newLat = store.lat || DEFAULT_LAT;
       const newLng = store.lng || DEFAULT_LNG;
@@ -75,6 +79,19 @@ const MerchantStoreSettings = () => {
     setLat(event.lngLat.lat);
   }, []);
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result;
+        setImagePreview(base64String);
+        setLogoBase64(base64String);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     try {
@@ -87,7 +104,8 @@ const MerchantStoreSettings = () => {
         lng,
         salePrice: salePrice ? parseFloat(salePrice) : undefined,
         startTime: startTime || undefined,
-        endTime: endTime || undefined
+        endTime: endTime || undefined,
+        logoBase64
       });
       setMessage({ type: 'success', text: 'Configuración guardada exitosamente.' });
     } catch (err) {
@@ -225,6 +243,31 @@ const MerchantStoreSettings = () => {
             </div>
           </div>
           
+          {/* Tarjeta de Logotipo */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-200">
+            <h3 className="text-lg font-black text-gray-900 mb-1">Logo de la Sucursal</h3>
+            <p className="text-sm text-gray-500 font-medium mb-6">Actualiza el logo que verán tus clientes.</p>
+            
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-xl bg-gray-100 flex items-center justify-center border border-gray-200 overflow-hidden shrink-0">
+                {imagePreview ? (
+                  <img src={imagePreview} alt="Preview" className="h-full w-full object-cover" />
+                ) : (
+                  <ImageIcon className="h-6 w-6 text-gray-400" />
+                )}
+              </div>
+              <label className="cursor-pointer bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg font-medium text-sm transition-colors shadow-sm">
+                Cambiar Imagen
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                />
+              </label>
+            </div>
+          </div>
+
           <button
             type="submit"
             disabled={isSaving}
