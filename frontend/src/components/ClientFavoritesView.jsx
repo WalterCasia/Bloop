@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Heart, MapPin } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Heart, MapPin, ArrowLeft } from 'lucide-react';
 import apiClient from '../api/apiClient';
 
 export default function ClientFavoritesView() {
+  const navigate = useNavigate();
   const [favorites, setFavorites] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -32,7 +33,15 @@ export default function ClientFavoritesView() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-extrabold text-gray-900 mb-8">Tus Favoritos</h1>
+      <div className="flex items-center gap-4 mb-8">
+        <button 
+          onClick={() => navigate('/customer/explore')}
+          className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
+        >
+          <ArrowLeft size={24} className="text-gray-900" />
+        </button>
+        <h1 className="text-3xl font-extrabold text-gray-900">Tus Favoritos</h1>
+      </div>
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -74,7 +83,7 @@ export default function ClientFavoritesView() {
 
               <div className="h-48 w-full rounded-xl overflow-hidden mb-4 bg-gray-100 relative">
                 <img 
-                  src={(store.cover_url && store.cover_url.split(',')[0]) || 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80'} 
+                  src={(store.cover_url && store.cover_url.split(',')[0]) || `https://ui-avatars.com/api/?name=${encodeURIComponent(store.name)}&size=400&background=random`} 
                   alt={store.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
