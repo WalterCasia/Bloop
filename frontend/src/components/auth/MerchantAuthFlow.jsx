@@ -170,7 +170,7 @@ const MerchantAuthFlow = () => {
         if (pendingCode && signInData.session) {
           try {
             await apiClient.post('/api/merchant/invitations/redeem', 
-              { code: pendingCode.toUpperCase() },
+              { code: pendingCode.toUpperCase(), fullName: signInData.user?.user_metadata?.full_name || 'Empleado' },
               { headers: { Authorization: `Bearer ${signInData.session.access_token}` } }
             );
             localStorage.removeItem('pending_invite_code');
@@ -216,7 +216,7 @@ const MerchantAuthFlow = () => {
           const session = signUpData.session; // Usar la sesión directamente
           if (session) {
             await apiClient.post('/api/merchant/invitations/redeem', 
-              { code: inviteCode.toUpperCase() },
+              { code: inviteCode.toUpperCase(), fullName: fullName },
               { headers: { Authorization: `Bearer ${session.access_token}` } }
             );
             // Ahora permitimos que el useEffect se encargue de la redirección

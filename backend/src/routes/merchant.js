@@ -198,7 +198,7 @@ export default async function merchantRoutes(fastify, options) {
           role = 'COMERCIO',
           merchant_role = 'EMPLOYEE',
           assigned_store_id = EXCLUDED.assigned_store_id,
-          full_name = EXCLUDED.full_name,
+          full_name = CASE WHEN EXCLUDED.full_name = 'Empleado Bloop' THEN COALESCE(public.profiles.full_name, 'Empleado Bloop') ELSE EXCLUDED.full_name END,
           store_name = COALESCE(public.profiles.store_name, 'N/A'),
           address = COALESCE(public.profiles.address, 'N/A'),
           location = COALESCE(public.profiles.location, ST_SetSRID(ST_MakePoint(0, 0), 4326)),
