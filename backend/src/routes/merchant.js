@@ -1151,4 +1151,40 @@ export default async function merchantRoutes(fastify, options) {
     }
   });
 
+  // ----------------------------------------------------------------------
+  // REVOCAR EMPLEADO (DELETE)
+  // ----------------------------------------------------------------------
+  fastify.delete('/api/merchant/employees/:employeeId', {
+    onRequest: [fastify.authenticate]
+  }, async (request, reply) => {
+    const { employeeId } = request.params;
+    const client = await fastify.pg.connect();
+    try {
+      const ownerId = request.user.sub || request.user.id;
+      // Verificar que el empleado pertenece a una sucursal de este owner
+      const checkStore = await client.query(`
+        SELECT p.id FROM public.profiles p
+        JOIN public.stores s ON p.assigned_store_id = s.id
+        WHERE p.id = $1 AND s.owner_id = $2
+      `, [employeeId, ownerId]);
+
+      if (checkStore.rowCount === 0) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'No puedes revocar a este empleado.' });
+      }
+
+      await client.query(`
+        UPDATE public.profiles
+        SET merchant_role = 'CLIENT', assigned_store_id = NULL
+        WHERE id = $1
+      `, [employeeId]);
+
+      return { status: 'success', message: 'Acceso de empleado revocado.' };
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error', message: 'Error al revocar acceso.' });
+    } finally {
+      client.release();
+    }
+  });
+
 };
