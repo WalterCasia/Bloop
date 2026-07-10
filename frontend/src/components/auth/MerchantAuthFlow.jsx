@@ -193,7 +193,8 @@ const MerchantAuthFlow = () => {
           options: {
             data: {
               role: 'STAFF',
-              onboarding_completed: true
+              onboarding_completed: true,
+              full_name: fullName
             }
           }
         });
@@ -249,7 +250,7 @@ const MerchantAuthFlow = () => {
     if (step === 2) {
       if (selectedRole === 'employee') {
         if (isLogin) return email && password;
-        return email && password && inviteCode.length === 6;
+        return fullName && email && password && inviteCode.length === 6;
       }
       if (selectedRole === 'manager') {
         if (isLogin) return email && password;
@@ -300,7 +301,7 @@ const MerchantAuthFlow = () => {
           )}
 
           <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleNext(); }}>
-            {selectedRole === 'manager' && !isLogin && (
+            {!isLogin && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
                 <div className="relative">
