@@ -5,6 +5,7 @@ import { Users, UserPlus, MoreVertical, Building2, UserX } from 'lucide-react';
 import MerchantBranchSelector from '../MerchantBranchSelector';
 import EmployeeInviteModal from './EmployeeInviteModal';
 import { supabase } from '../../lib/supabaseClient';
+import apiClient from '../../api/apiClient';
 
 const MerchantEmployeesView = () => {
   const { user } = useAuth();
@@ -54,14 +55,13 @@ const MerchantEmployeesView = () => {
     if (!confirmRevoke) return;
 
     try {
-      // Lógica real: Actualizar el perfil del empleado o llamar a un endpoint seguro
-      // await supabase.from('profiles').update({ merchant_role: 'CLIENT', assigned_store_id: null }).eq('id', employeeId);
+      await apiClient.delete(`/api/merchant/employees/${employeeId}`);
       
       setEmployees(prev => prev.filter(e => e.id !== employeeId));
       alert(`Acceso revocado para ${employeeName}.`);
     } catch (error) {
       console.error('Error revoking access:', error);
-      alert('Error al intentar revocar el acceso.');
+      alert(error.response?.data?.message || 'Error al intentar revocar el acceso.');
     }
   };
 

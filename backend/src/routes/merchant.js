@@ -4,6 +4,16 @@
 export default async function merchantRoutes(fastify, options) {
   
   // Endpoint para crear una nueva sucursal (Multi-Store)
+  fastify.get('/api/merchant/fix-employees', async (request, reply) => {
+    const client = await fastify.pg.connect();
+    try {
+      const res = await client.query("UPDATE public.profiles p SET full_name = COALESCE(u.raw_user_meta_data->>'full_name', 'Empleado ' || split_part(u.email, '@', 1)) FROM auth.users u WHERE p.id = u.id AND p.full_name = 'Empleado Bloop'");
+      return { status: 'success', fixed: res.rowCount };
+    } finally {
+      client.release();
+    }
+  });
+
   fastify.post('/api/merchant/stores', {
     onRequest: [fastify.authenticate],
     schema: {
@@ -180,19 +190,21 @@ export default async function merchantRoutes(fastify, options) {
       const invite = inviteRes.rows[0];
 
       // 2. Actualizar el perfil del usuario a EMPLOYEE y asignarlo a la tienda
+      const employeeName = request.body.fullName || 'Empleado Bloop';
       const updateProfileQuery = `
         INSERT INTO public.profiles (id, role, merchant_role, assigned_store_id, full_name, store_name, address, location)
-        VALUES ($1, 'COMERCIO', 'EMPLOYEE', $2, 'Empleado Bloop', 'N/A', 'N/A', ST_SetSRID(ST_MakePoint(0, 0), 4326))
+        VALUES ($1, 'COMERCIO', 'EMPLOYEE', $2, $3, 'N/A', 'N/A', ST_SetSRID(ST_MakePoint(0, 0), 4326))
         ON CONFLICT (id) DO UPDATE SET
           role = 'COMERCIO',
           merchant_role = 'EMPLOYEE',
           assigned_store_id = EXCLUDED.assigned_store_id,
+          full_name = EXCLUDED.full_name,
           store_name = COALESCE(public.profiles.store_name, 'N/A'),
           address = COALESCE(public.profiles.address, 'N/A'),
           location = COALESCE(public.profiles.location, ST_SetSRID(ST_MakePoint(0, 0), 4326)),
           updated_at = NOW()
       `;
-      await client.query(updateProfileQuery, [user_id, invite.store_id]);
+      await client.query(updateProfileQuery, [user_id, invite.store_id, employeeName]);
 
       // También actualizamos el app_metadata en auth.users si es necesario para los tokens JWT (solo si se usa db en auth)
       // Omitido temporalmente, el login relies on perfiles.

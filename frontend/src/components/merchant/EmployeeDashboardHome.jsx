@@ -3,12 +3,14 @@ import { QrCode, Plus, Minus, Package } from 'lucide-react';
 import MerchantOrdersView from './MerchantOrdersView';
 import apiClient from '../../api/apiClient';
 import { useStoreContext } from '../../contexts/StoreContext';
+import QRScannerModal from '../QRScannerModal';
 
 const EmployeeDashboardHome = () => {
   const { activeStore } = useStoreContext();
   const [packData, setPackData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   
   const debounceTimer = useRef(null);
   const lastValidStock = useRef(0);
@@ -81,9 +83,26 @@ const EmployeeDashboardHome = () => {
     }, 600);
   };
 
+  const handleScannerSuccess = (orderData) => {
+    setShowScanner(false);
+    alert(`¡Pedido validado exitosamente para el pack: ${orderData.pack_title}!`);
+    fetchStock(false); 
+  };
+
   return (
-    <div className="p-6 md:p-10 min-h-screen bg-gray-50 flex flex-col animate-fade-in">
-      <h1 className="text-3xl font-black text-gray-900 mb-8 tracking-tight">Inicio Operativo</h1>
+    <div className="p-6 md:p-10 min-h-screen bg-gray-50 flex flex-col animate-fade-in relative">
+      {showScanner && (
+        <QRScannerModal 
+          onClose={() => setShowScanner(false)} 
+          onSuccess={handleScannerSuccess} 
+          activeStore={activeStore}
+        />
+      )}
+
+      <h1 className="text-3xl font-black text-gray-900 tracking-tight">Inicio Operativo</h1>
+      {activeStore && (
+        <p className="text-gray-500 mt-1 mb-8 font-medium">Sucursal: <span className="text-gray-900 font-bold">{activeStore.name}</span></p>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-1">
         
@@ -99,7 +118,10 @@ const EmployeeDashboardHome = () => {
             <p className="text-gray-500 mb-8 max-w-md">
               Escanea el código QR que el cliente te mostrará en su pantalla para entregar el paquete.
             </p>
-            <button className="w-full sm:w-auto px-12 py-5 bg-black text-white text-xl font-bold rounded-2xl hover:bg-gray-900 active:scale-95 transition-all shadow-lg">
+            <button 
+              onClick={() => setShowScanner(true)}
+              className="w-full sm:w-auto px-12 py-5 bg-black text-white text-xl font-bold rounded-2xl hover:bg-gray-900 active:scale-95 transition-all shadow-lg"
+            >
               Abrir Escáner QR
             </button>
           </div>
