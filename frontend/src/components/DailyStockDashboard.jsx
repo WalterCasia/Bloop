@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useStoreContext } from '../contexts/StoreContext';
+import { Edit2, Trash2 } from 'lucide-react';
 
 const DailyStockDashboard = () => {
   const { user } = useAuth();
@@ -12,6 +13,7 @@ const DailyStockDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [errorModal, setErrorModal] = useState(null); // { title: '', message: '' }
+  const navigate = useNavigate();
   
   const debounceTimer = useRef(null);
   const lastValidStock = useRef(0);
@@ -101,12 +103,44 @@ const DailyStockDashboard = () => {
 
   const handleSoldOut = async () => {
     if (!packData || packData.status === 'SOLD_OUT') return;
-    
-    const confirmAction = window.confirm('¿Está seguro de querer detener las ventas y marcar el inventario como agotado por hoy?');
+    const confirmAction = window.confirm('¿Deseas detener las ventas y marcar el inventario como agotado por hoy? Las reservas ya pagadas se mantendrán.');
     if (!confirmAction) return;
 
     setPackData(prev => ({ ...prev, availableStock: 0, status: 'SOLD_OUT' }));
     await syncStockWithBackend(0, 'SOLD_OUT');
+  };
+
+  const handleDeletePack = async () => {
+    if (!packData) return;
+    const confirmAction = window.confirm('¿Estás seguro de que deseas eliminar este pack? Las reservas que ya hayan sido pagadas seguirán siendo válidas, pero ya no aceptará nuevas reservas.');
+    if (!confirmAction) return;
+    
+    try {
+      setIsUpdating(true);
+      await apiClient.delete(`/api/merchant/packs/${packData.id}`);
+      alert('El pack ha sido eliminado correctamente.');
+      // Refetch after delete
+      setIsLoading(true);
+      const response = await apiClient.get(`/api/merchant/stock?storeId=${activeStore.id}`);
+      if (response.data.status === 'success') {
+        setPackData(response.data.pack);
+        lastValidStock.current = response.data.pack.availableStock;
+      }
+    } catch (err) {
+      if (err.response && err.response.status === 404) {
+        setPackData(null);
+      } else {
+        alert(err.response?.data?.message || 'Error al intentar eliminar el pack.');
+      }
+    } finally {
+      setIsUpdating(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditPack = () => {
+    if (!packData) return;
+    navigate('/merchant/create-pack', { state: { editMode: true, packData } });
   };
 
   if (isLoading) {
@@ -179,6 +213,22 @@ const DailyStockDashboard = () => {
               }`}>
                 {packData.status === 'SOLD_OUT' ? 'Venta Detenida' : 'Venta Activa'}
               </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={handleEditPack}
+                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 hover:bg-gray-200 transition-colors"
+                title="Editar Pack"
+              >
+                <Edit2 size={18} />
+              </button>
+              <button 
+                onClick={handleDeletePack}
+                className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 hover:bg-red-100 transition-colors"
+                title="Eliminar Pack"
+              >
+                <Trash2 size={18} />
+              </button>
             </div>
           </div>
 
