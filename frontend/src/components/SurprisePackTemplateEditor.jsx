@@ -1,31 +1,52 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import { useStoreContext } from '../contexts/StoreContext';
 import { Package, Clock, Calendar, Info, Image as ImageIcon, CheckCircle, AlertCircle, X, UploadCloud, Tag } from 'lucide-react';
 
 const SurprisePackTemplateEditor = () => {
   const { activeStore } = useStoreContext();
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  const editMode = location.state?.editMode || false;
+  const initialPackData = location.state?.packData || null;
+
+  const parseTime = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    // Para asegurar que estamos en hora local o ajustar según se necesite
+    return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }).substring(0, 5);
+  };
+  
+  const parseDate = (isoString) => {
+    if (!isoString) return new Date().toISOString().split('T')[0];
+    const date = new Date(isoString);
+    return date.toISOString().split('T')[0];
+  };
+
   const [formData, setFormData] = useState({
-    title: '',
+    title: initialPackData?.title || '',
     category: '',
     description: '',
     instructions: '',
-    originalPrice: '',
-    pickupDate: new Date().toISOString().split('T')[0],
-    startTime: '',
-    endTime: ''
+    originalPrice: initialPackData?.original_price || '',
+    pickupDate: parseDate(initialPackData?.pickup_start_time),
+    startTime: parseTime(initialPackData?.pickup_start_time),
+    endTime: parseTime(initialPackData?.pickup_end_time)
   });
 
-  const [discountRate, setDiscountRate] = useState(66);
-  const [salePrice, setSalePrice] = useState('0.00');
+  const [discountRate, setDiscountRate] = useState(
+    initialPackData 
+      ? Math.round(100 - (initialPackData.discounted_price / initialPackData.original_price) * 100) 
+      : 66
+  );
+  const [salePrice, setSalePrice] = useState(initialPackData?.discounted_price || '0.00');
   const [timeError, setTimeError] = useState('');
   
-  // Array of image base64 strings
-  const [imagesPreview, setImagesPreview] = useState([]);
-  
+  // Si la url ya viene desde db y es string puro no base64, lo agregamos también
+  const [imagesPreview, setImagesPreview] = useState(initialPackData?.image_url ? [initialPackData.image_url] : []);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigate = useNavigate();
 
   // Efecto de Anclaje Financiero Automático
   useEffect(() => {
@@ -104,10 +125,24 @@ const SurprisePackTemplateEditor = () => {
     
     setIsSubmitting(true);
     try {
-      const response = await apiClient.post('/api/merchant/packs/template', payload);
-      if (response.data.status === 'success') {
-        alert('Pack configurado correctamente. Redirigiendo a tu inventario...');
-        navigate('/merchant/daily-stock');
+      if (editMode) {
+        // En edición, filtramos las imágenes que ya son URLs (no base64) para no re-subir
+        const base64Images = imagesPreview.filter(img => img.startsWith('data:image'));
+        const payloadEdit = {
+          ...payload,
+          imagesBase64: base64Images
+        };
+        const response = await apiClient.put(`/api/merchant/packs/${initialPackData.id}`, payloadEdit);
+        if (response.data.status === 'success') {
+          alert('Pack actualizado correctamente.');
+          navigate(-1);
+        }
+      } else {
+        const response = await apiClient.post('/api/merchant/packs/template', payload);
+        if (response.data.status === 'success') {
+          alert('Pack configurado correctamente. Redirigiendo a tu inventario...');
+          navigate('/merchant/daily-stock');
+        }
       }
     } catch (error) {
       alert(error.response?.data?.message || 'Error al guardar el pack. Intenta nuevamente.');
@@ -118,19 +153,29 @@ const SurprisePackTemplateEditor = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-8 py-6 mb-8 shadow-sm">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-              <Package className="text-blue-600" size={28} />
-              Configurar Pack Sorpresa
-            </h1>
-            <p className="text-gray-500 mt-1">
-              Programa y define las reglas de tu inventario de rescate de alimentos.
-            </p>
-          </div>
+      {/* Encabezado fijo superior */}
+      <div className="bg-white px-6 py-4 border-b border-gray-200 sticky top-0 z-30 flex items-center justify-between shadow-sm">
+        <div>
+          <button 
+            onClick={() => navigate(-1)}
+            className="text-gray-400 hover:text-gray-900 mb-1 transition-colors"
+          >
+            <X size={24} />
+          </button>
+          <h1 className="text-2xl font-black text-gray-900 leading-tight">
+            {editMode ? 'Editar Pack Sorpresa' : 'Crea tu Pack Sorpresa'}
+          </h1>
+          <p className="text-sm text-gray-500 font-medium">
+            {editMode ? 'Modifica los detalles de este pack.' : 'Completa los datos para publicarlo en la app.'}
+          </p>
         </div>
+        <button
+          onClick={handleSubmit}
+          disabled={isSubmitting || timeError}
+          className="bg-black text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-gray-800 disabled:opacity-50 transition-all active:scale-95"
+        >
+          {isSubmitting ? 'Guardando...' : (editMode ? 'Guardar Cambios' : 'Publicar Pack')}
+        </button>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

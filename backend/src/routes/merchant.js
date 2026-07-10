@@ -533,9 +533,9 @@ export default async function merchantRoutes(fastify, options) {
 
       // Obtenemos el pack activo del comercio (asumimos 1 por comercio al día en el MVP)
       const packQuery = `
-        SELECT id, title, available_quantity, original_price 
+        SELECT id, title, available_quantity, original_price, discounted_price, pickup_start_time, pickup_end_time, image_url, is_active
         FROM public.surprise_packs 
-        WHERE store_id = $1
+        WHERE store_id = $1 AND is_active = true
         ORDER BY created_at DESC 
         LIMIT 1
       `;
@@ -569,6 +569,11 @@ export default async function merchantRoutes(fastify, options) {
         pack: {
           id: pack.id,
           title: pack.title,
+          original_price: pack.original_price,
+          discounted_price: pack.discounted_price,
+          pickup_start_time: pack.pickup_start_time,
+          pickup_end_time: pack.pickup_end_time,
+          image_url: pack.image_url,
           soldUnits: soldUnits,
           availableStock: currentAvailable,
           status: isSoldOut ? 'SOLD_OUT' : 'ACTIVE'
@@ -794,6 +799,146 @@ export default async function merchantRoutes(fastify, options) {
       client.release();
     }
   });
+  // ----------------------------------------------------------------------
+  // 3.1 EDITAR PACK SORPRESA (PUT)
+  // ----------------------------------------------------------------------
+  fastify.put('/api/merchant/packs/:id', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string', format: 'uuid' } },
+        required: ['id']
+      },
+      body: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          originalPrice: { type: 'number' },
+          salePrice: { type: 'number' },
+          pickupDate: { type: 'string' },
+          startTime: { type: 'string' },
+          endTime: { type: 'string' },
+          imagesBase64: { type: 'array', items: { type: 'string' } }
+        },
+        required: ['title', 'originalPrice', 'salePrice', 'pickupDate', 'startTime', 'endTime']
+      }
+    }
+  }, async (request, reply) => {
+    const { id } = request.params;
+    const { title, originalPrice, salePrice, pickupDate, startTime, endTime, imagesBase64, storeId: payloadStoreId } = request.body;
+    
+    const pickupStart = `${pickupDate} ${startTime}:00-06`;
+    let endDateStr = pickupDate;
+    if (endTime < startTime) {
+      const dateObj = new Date(`${pickupDate}T12:00:00Z`);
+      dateObj.setUTCDate(dateObj.getUTCDate() + 1);
+      endDateStr = dateObj.toISOString().split('T')[0];
+    }
+    const pickupEnd = `${endDateStr} ${endTime}:00-06`;
+
+    let imageUrl = undefined;
+    try {
+      if (imagesBase64 && imagesBase64.length > 0) {
+        const uploadResponse = await fastify.cloudinary.uploader.upload(imagesBase64[0], {
+          folder: 'bloop_packs',
+          resource_type: 'image'
+        });
+        imageUrl = uploadResponse.secure_url;
+      }
+    } catch (err) {
+      fastify.log.error('Error uploading image to Cloudinary:', err);
+    }
+    
+    const client = await fastify.pg.connect();
+    try {
+      const userId = request.user.sub || request.user.id;
+      
+      // Validar que el comercio sea dueño del pack
+      const storeRes = await client.query(
+        `SELECT p.id, p.store_id FROM public.surprise_packs p
+         LEFT JOIN public.stores s ON p.store_id = s.id
+         LEFT JOIN public.profiles pr ON pr.assigned_store_id = s.id AND pr.id = $1
+         WHERE p.id = $2 AND (s.owner_id = $1 OR pr.id = $1)`, 
+        [userId, id]
+      );
+      
+      if (storeRes.rowCount === 0) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'No tienes permisos para editar este pack o no existe.' });
+      }
+
+      let updateQuery = `
+        UPDATE public.surprise_packs 
+        SET title = $1, original_price = $2, discounted_price = $3, 
+            pickup_start_time = $4, pickup_end_time = $5, updated_at = NOW()
+      `;
+      const values = [title, originalPrice, salePrice, pickupStart, pickupEnd];
+      
+      if (imageUrl !== undefined) {
+        updateQuery += `, image_url = $6 WHERE id = $7`;
+        values.push(imageUrl, id);
+      } else {
+        updateQuery += ` WHERE id = $6`;
+        values.push(id);
+      }
+      
+      await client.query(updateQuery, values);
+      
+      return reply.code(200).send({ status: 'success', message: 'Pack actualizado exitosamente.' });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error', message: `No se pudo actualizar el pack: ${error.message}` });
+    } finally {
+      client.release();
+    }
+  });
+
+  // ----------------------------------------------------------------------
+  // 3.2 ELIMINAR PACK SORPRESA (DELETE)
+  // ----------------------------------------------------------------------
+  fastify.delete('/api/merchant/packs/:id', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string', format: 'uuid' } },
+        required: ['id']
+      }
+    }
+  }, async (request, reply) => {
+    const { id } = request.params;
+    const client = await fastify.pg.connect();
+    
+    try {
+      const userId = request.user.sub || request.user.id;
+      
+      const storeRes = await client.query(
+        `SELECT p.id, p.store_id FROM public.surprise_packs p
+         LEFT JOIN public.stores s ON p.store_id = s.id
+         LEFT JOIN public.profiles pr ON pr.assigned_store_id = s.id AND pr.id = $1
+         WHERE p.id = $2 AND (s.owner_id = $1 OR pr.id = $1)`, 
+        [userId, id]
+      );
+      
+      if (storeRes.rowCount === 0) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'No tienes permisos para eliminar este pack o no existe.' });
+      }
+
+      // Soft delete
+      await client.query(
+        `UPDATE public.surprise_packs SET is_active = false, status = 'SOLD_OUT', updated_at = NOW() WHERE id = $1`, 
+        [id]
+      );
+      
+      return reply.code(200).send({ status: 'success', message: 'Pack eliminado exitosamente.' });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error', message: `No se pudo eliminar el pack: ${error.message}` });
+    } finally {
+      client.release();
+    }
+  });
+
   // ----------------------------------------------------------------------
   // 4. ACTUALIZAR CONFIGURACIÓN DE SUCURSAL Y PACK (PATCH)
   // ----------------------------------------------------------------------

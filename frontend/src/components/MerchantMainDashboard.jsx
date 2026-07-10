@@ -4,7 +4,7 @@ import apiClient from '../api/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useStoreContext } from '../contexts/StoreContext';
 import QRScannerModal from './QRScannerModal';
-import { QrCode, Clock, DollarSign, PackageCheck, PackageOpen, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { QrCode, Clock, DollarSign, PackageCheck, PackageOpen, ChevronRight, CheckCircle2, Edit2, Trash2 } from 'lucide-react';
 
 const MerchantMainDashboard = () => {
   const { user } = useAuth();
@@ -122,6 +122,28 @@ const MerchantMainDashboard = () => {
     await syncStockWithBackend(0, 'SOLD_OUT');
   };
 
+  const handleDeletePack = async () => {
+    if (!packData) return;
+    const confirmAction = window.confirm('¿Estás seguro de que deseas eliminar este pack? Las reservas que ya hayan sido pagadas seguirán siendo válidas, pero ya no aceptará nuevas reservas.');
+    if (!confirmAction) return;
+    
+    try {
+      setIsUpdating(true);
+      await apiClient.delete(`/api/merchant/packs/${packData.id}`);
+      alert('El pack ha sido eliminado correctamente.');
+      fetchData(true);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error al intentar eliminar el pack.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleEditPack = () => {
+    if (!packData) return;
+    navigate('/merchant/create-pack', { state: { editMode: true, packData } });
+  };
+
   const handleScannerSuccess = (orderData) => {
     setShowScanner(false);
     alert(`¡Pedido validado exitosamente para el pack: ${orderData.pack_title}!`);
@@ -229,11 +251,29 @@ const MerchantMainDashboard = () => {
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-200">
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Stock de Hoy</h2>
+                  <div className="flex items-center gap-3 mb-1">
+                    <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Stock de Hoy</h2>
+                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${packData.status === 'SOLD_OUT' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                      {packData.status === 'SOLD_OUT' ? 'Agotado' : 'Activo'}
+                    </div>
+                  </div>
                   <h3 className="text-xl font-bold text-gray-900">{packData.title}</h3>
                 </div>
-                <div className={`px-3 py-1 rounded-full text-xs font-bold ${packData.status === 'SOLD_OUT' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                  {packData.status === 'SOLD_OUT' ? 'Agotado' : 'Activo'}
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={handleEditPack}
+                    className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 hover:bg-gray-200 transition-colors"
+                    title="Editar Pack"
+                  >
+                    <Edit2 size={18} />
+                  </button>
+                  <button 
+                    onClick={handleDeletePack}
+                    className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 hover:bg-red-100 transition-colors"
+                    title="Eliminar Pack"
+                  >
+                    <Trash2 size={18} />
+                  </button>
                 </div>
               </div>
 
