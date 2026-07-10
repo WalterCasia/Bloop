@@ -30,7 +30,7 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       console.warn('Sesión expirada o no autorizada.', error.response.config.url);
-      // supabase.auth.signOut(); // Desactivado temporalmente para depuración
+      supabase.auth.signOut(); // Desactivado temporalmente para depuración -> Reactivado
     }
     return Promise.reject(error);
   }
