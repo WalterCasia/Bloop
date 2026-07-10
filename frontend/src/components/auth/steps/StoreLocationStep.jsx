@@ -103,6 +103,7 @@ const StoreLocationStep = ({ data, onChange, onValidationChange }) => {
             onMove={evt => setViewState(evt.viewState)}
             mapStyle="mapbox://styles/mapbox/streets-v11"
             mapboxAccessToken={MAPBOX_TOKEN}
+            style={{ width: '100%', height: '100%' }}
           >
             {coords && (
               <Marker 

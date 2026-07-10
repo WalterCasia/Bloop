@@ -250,6 +250,7 @@ const ClientPackDetailView = () => {
               mapStyle="mapbox://styles/mapbox/light-v11"
               mapboxAccessToken={MAPBOX_TOKEN}
               interactive={false}
+              style={{ width: '100%', height: '100%' }}
             >
               <Marker 
                 longitude={pack.location_lng || -90.5069} 

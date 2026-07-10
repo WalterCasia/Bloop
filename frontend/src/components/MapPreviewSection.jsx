@@ -49,6 +49,7 @@ const MapPreviewSection = () => {
             mapStyle="mapbox://styles/mapbox/light-v11"
             mapboxAccessToken={MAPBOX_TOKEN}
             scrollZoom={false} // Para no interrumpir el scroll de la Landing Page
+            style={{ width: '100%', height: '100%' }}
           >
             {stores.map((store, index) => (
               <Marker 
